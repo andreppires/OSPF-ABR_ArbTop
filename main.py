@@ -14,6 +14,7 @@ class Thread(threading.Thread):
 def configuration():
     print 'config!'
 
+
 def timeKeeping():
     print 'time keeping'
     start()
