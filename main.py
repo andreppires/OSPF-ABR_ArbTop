@@ -6,7 +6,6 @@ from CreatePacket import createIPheader
 #source='127.0.0.1'
 #x= createIPheader(dest, source)
 
-
 class Thread(threading.Thread):
     def __init__(self, t, *args):
         threading.Thread.__init__(self, target=t, args=args)
