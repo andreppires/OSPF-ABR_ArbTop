@@ -1,6 +1,6 @@
 from time import sleep
 
-def start():
-    print 'time starts'
+def TimeStart():
+    print 'cold start'
     sleep(2)
     print 'slipei 2 segundos'

@@ -1,10 +1,5 @@
 import threading
-from TimeProcessing import start
-from CreatePacket import createIPheader
-
-#dest='127.0.0.1'
-#source='127.0.0.1'
-#x= createIPheader(dest, source)
+from TimeProcessing import TimeStart
 
 class Thread(threading.Thread):
     def __init__(self, t, *args):
@@ -17,7 +12,7 @@ def configuration():
 
 def timeKeeping():
     print 'time keeping'
-    start()
+    TimeStart()
 
 def receivedOSPFpackets():
     print 'received packets'
