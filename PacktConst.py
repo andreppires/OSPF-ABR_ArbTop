@@ -34,7 +34,7 @@ def createOSPFHeader(type, rid, aid) :
     AreaID= aid
     checksum= 0 #TODO
     autype= 0 #TODO
-    Authentic= 0 #TODO
+    Authentic= '' #TODO
 
     ospfheader= pack('!BBH4s4sHH8s', version, typeof, pcklength, routerID, AreaID, checksum, autype, Authentic)
     return ospfheader
@@ -45,14 +45,16 @@ def createHelloPck(netmaks, DR, BDR, Neighbors):
     helloint = 10
     Options = 0  # TODO verificar que options sao estas
     routerPri = 1  # TODO verificar qual o valor correto
-    routDeadInt = 3600  # TODO verificar qual o valor correto
+    routDeadInt = '3600'  # TODO verificar qual o valor correto
     DesigRout = DR
     BackupDesigRout = BDR
 
     hello = pack('!4sHBB4s4s4s ', networkmaks, helloint, Options, routerPri, routDeadInt, DesigRout, BackupDesigRout)
 
-    # Neighbors tem de ser uma lista/conjunto dos vários vizinhos. Como saber o numero de
+    # Neighbors tem de ser uma lista/conjunto dos varios vizinhos.
     for x in Neighbors:
         hello = hello + pack('4s', x)
 
     return hello
+
+

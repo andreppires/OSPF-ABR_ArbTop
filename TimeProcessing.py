@@ -1,6 +1,6 @@
 from time import sleep
 
 def TimeStart():
-    print 'cold start'
-    sleep(2)
-    print 'slipei 2 segundos'
+    print 'waiting 15 second for an Hello packet'
+    sleep(15)
+    print 'slipei 15 segundos'
