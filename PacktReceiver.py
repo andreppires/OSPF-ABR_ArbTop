@@ -54,42 +54,42 @@ def startReceiver():
     LS_UPDATE = '04'
     LS_ACKNOWLEDGE = '05'
 
-    print 'received packets'
+    print("received packets")
     cast = mcast.mcast()
     mgroup = cast.create(MCAST_GROUP, PROTO)
     pos = 0
     while True:
-        print 'estou aqui!'
+        print('estou aqui!')
         try:
             data, addr = cast.recv(mgroup)
             if data:
-                print "*** Packet received from %s ***" % (addr[0])
+                print("*** Packet received from %s ***" % (addr[0]))
                 if b2a_hex(data[pos + 9]) == OSPF_TYPE_IGP:
-                    print "Protocol OSPF IGP (%d)" % int(b2a_hex(data[pos + 9]), 16)
+                    print( "Protocol OSPF IGP (%d)" % int(b2a_hex(data[pos + 9]), 16))
                     pos += 20
                     # Message Type
                     if b2a_hex(data[pos + 1]) == HELLO_PACKET:
                         type = 1
-                        print "Message Type: Hello Packet (%d)" % int(b2a_hex(data[pos + 1]), 16)
+                        print( "Message Type: Hello Packet (%d)" % int(b2a_hex(data[pos + 1]), 16))
                     elif b2a_hex(data[pos + 1]) == DB_DESCRIPTION:
                         type = 2
-                        print "Message Type: DB Description (%d)" % int(b2a_hex(data[pos + 1]), 16)
+                        print( "Message Type: DB Description (%d)" % int(b2a_hex(data[pos + 1]), 16))
                     elif b2a_hex(data[pos + 1]) == LS_REQUEST:
                         type = 3
-                        print "Message Type: LS Request (%d)" % int(b2a_hex(data[pos + 1]), 16)
+                        print( "Message Type: LS Request (%d)" % int(b2a_hex(data[pos + 1]), 16))
                     elif b2a_hex(data[pos + 1]) == LS_UPDATE:
                         type = 4
-                        print "Message Type: LS Update (%d)" % int(b2a_hex(data[pos + 1]), 16)
+                        print( "Message Type: LS Update (%d)" % int(b2a_hex(data[pos + 1]), 16))
                     elif b2a_hex(data[pos + 1]) == LS_ACKNOWLEDGE:
                         type = 5
-                        print "Message Type: LS Acknowledge (%d)" % int(b2a_hex(data[pos + 1]), 16)
+                        print( "Message Type: LS Acknowledge (%d)" % int(b2a_hex(data[pos + 1]), 16))
 
                     if b2a_hex(data[pos]) == '01' or '02' or '03':
-                        print "OSPF Version: %d" % int(b2a_hex(data[pos]), 16)
+                        print( "OSPF Version: %d" % int(b2a_hex(data[pos]), 16))
                     else:
-                        print "OSPF Version: Unknown"
+                        print( "OSPF Version: Unknown")
             else:
-                print "Error, not an OSPF packet"
+                print( "Error, not an OSPF packet")
         except KeyboardInterrupt:
-            print 'quit'
+            print( 'quit')
             exit()

@@ -12,24 +12,24 @@ class Thread(threading.Thread):
 
 
 def configuration():
-    print 'config!'
+    print( 'config!')
 
 
 def timeKeeping():
-    print 'time keeping'
+    print( 'time keeping')
     TimeStart()
 
 
 def receivedOSPFpackets():
-    print 'Receiver'
+    print( 'Receiver')
     startReceiver()
 
 def interfaceStatusChanges():
-    print 'interface status'
+    print( 'interface status')
 
 
 def monitors():
-    print 'monitors'
+    print( 'monitors')
 
 
 def main():

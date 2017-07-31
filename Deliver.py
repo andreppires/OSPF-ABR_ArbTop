@@ -7,7 +7,7 @@ def deliver(packet, dest_ip):
     # create a raw socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-    except socket.error, msg:
+    except socket.error as msg:
         sys.exit()
         return 'Socket not be created. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 
