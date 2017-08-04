@@ -2,16 +2,16 @@ from random import randint
 import socket
 from struct import pack
 
-def createIPheader(dest_ip, source_ip):
+def createIPheader(dest_ip, source_ip, ttl):
 
     # ip header fields
     ip_ihl = 5
     ip_ver = 4
-    ip_tos = 0
+    ip_tos = 48
     ip_tot_len = 0  # kernel will fill the correct total length
     ip_id = (randint(0, 9999))  # random: should not be the same
     ip_frag_off = 0
-    ip_ttl = 255
+    ip_ttl = ttl
     ip_proto = socket.IPPROTO_TCP
     ip_check = 0  # kernel will fill the correct checksum
     ip_saddr = socket.inet_aton(source_ip)  # Spoof the source ip address if you want to
@@ -43,9 +43,9 @@ def createOSPFHeader(type, rid, aid) :
 def createHelloPck(netmaks, DR, BDR, Neighbors):
     networkmaks = netmaks
     helloint = 10
-    Options = 0  # TODO verificar que options sao estas
+    Options = 18  # TODO verificar que options sao estas
     routerPri = 1  # TODO verificar qual o valor correto
-    routDeadInt = '3600'  # TODO verificar qual o valor correto
+    routDeadInt = 40 # TODO verificar qual o valor correto
     DesigRout = DR
     BackupDesigRout = BDR
 

@@ -3,6 +3,7 @@ from PacktReceiver import startReceiver
 from TimeProcessing import TimeStart
 from Deliver import deliver
 from PacktConst import *
+from time import sleep
 
 
 class Thread(threading.Thread):
@@ -17,12 +18,12 @@ def configuration():
 
 def timeKeeping():
     print( 'time keeping')
-    TimeStart()
+    #TimeStart()
 
 
 def receivedOSPFpackets():
     print( 'Receiver')
-    startReceiver()
+    #startReceiver()
 
 def interfaceStatusChanges():
     print( 'interface status')
@@ -39,7 +40,8 @@ def main():
     Thread(interfaceStatusChanges)
     Thread(monitors)
 
-    deliver(createIPheader('127.0.0.1', '127.0.0.1')+createOSPFHeader(1, '1.1.1.1', '0')+createHelloPck('255.255.255.0', '', '', ''), '224.0.0.5')
+    sleep(5)
+    deliver(createIPheader('224.0.0.5', '20.20.20.1',1)+createOSPFHeader(1, '1.1.1.1', '0.0.0.0')+createHelloPck('255.255.255.0', '', '', ''), '224.0.0.5')
 
 
 
