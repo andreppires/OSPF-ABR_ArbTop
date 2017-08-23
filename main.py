@@ -13,35 +13,39 @@ class Thread(threading.Thread):
 
 
 def configuration():
-    print( 'config!')
-
+    return 0
 
 def timeKeeping():
-    print( 'time keeping')
-    #TimeStart()
+    TimeStart()
 
 
 def receivedOSPFpackets():
-    print( 'Receiver')
-    #startReceiver()
+    startReceiver()
 
 def interfaceStatusChanges():
-    print( 'interface status')
+    return 0
 
 
 def monitors():
-    print( 'monitors')
+    return 0
 
 
 def main():
-    Thread(timeKeeping)
-    Thread(configuration)
-    Thread(receivedOSPFpackets)
-    Thread(interfaceStatusChanges)
-    Thread(monitors)
+    #Thread(timeKeeping)
+    #Thread(configuration)
+    #Thread(receivedOSPFpackets)
+    #Thread(interfaceStatusChanges)
+    #Thread(monitors)
 
-    sleep(5)
-    deliver(createIPheader('224.0.0.5', '20.20.20.1',1)+createOSPFHeader(1, '1.1.1.1', '0.0.0.0')+createHelloPck('255.255.255.0', '', '', ''), '224.0.0.5')
+    #To test
+    ipHeader = createIPheader('224.0.0.5', '20.20.20.1',1)
+    neighbord = ['2.2.2.2']
+    HelloPack = createHelloPck('255.255.255.0','0.0.0.0' , '0.0.0.0', neighbord)
+    OSPFHeader = createOSPFHeader(1, '1.1.1.1', '0.0.0.0', HelloPack[1], HelloPack[0] , len(neighbord))
+
+    packet = ipHeader+OSPFHeader+HelloPack[0]
+
+    deliver(packet, '224.0.0.5')
 
 
 
