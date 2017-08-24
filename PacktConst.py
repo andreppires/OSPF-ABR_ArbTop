@@ -7,10 +7,9 @@ OSPF_HDR_LEN = struct.calcsize(OSPF_HDR)
 OSPF_HELLO_LEN= struct.calcsize(OSPF_HELLO)
 
 def createchecksum(msg, lenN):
-    lenPck=(lenN*16)+44
+    lenPck=((lenN*4)+44)
     pktOSPF = msg[:lenPck]
-
-    fields = struct.unpack("!"+str(pktOSPF/2)+"H", pktOSPF)
+    fields = struct.unpack("!"+str(lenPck/2)+"H", pktOSPF)
     fields = list(fields)
 
     sum = 0
@@ -102,12 +101,11 @@ def createHelloPck(netmask, DR, BDR, Neighbors):
     novaStruct =OSPF_HELLO
     # Neighbors tem de ser uma lista/conjunto dos varios vizinhos.
     for x in Neighbors:
-        if '.' is not x:
+        if x.find(".")==-1: #caso o argumento nao contenha um ponto - nao e um ip
             continue
         else:
-            hello = hello + struct.pack('L', (IPtoDec(x)))
-            novaStruct+= " L"
-
+            hello = hello + struct.pack('!L', (IPtoDec(x)))
+            novaStruct=novaStruct+ " L"
     helloLen= struct.calcsize(novaStruct)
 
     return hello, helloLen

@@ -39,9 +39,9 @@ def main():
 
     #To test
     ipHeader = createIPheader('224.0.0.5', '20.20.20.1',1)
-    neighbord = ['2.2.2.2']
-    HelloPack = createHelloPck('255.255.255.0','0.0.0.0' , '0.0.0.0', neighbord)
-    OSPFHeader = createOSPFHeader(1, '1.1.1.1', '0.0.0.0', HelloPack[1], HelloPack[0] , len(neighbord))
+    neighbord = ['4.5.6.7','2.2.2.2']
+    HelloPack = createHelloPck('255.255.255.0','3.4.5.6' , '6.7.8.9', neighbord)
+    OSPFHeader = createOSPFHeader(1, '1.2.3.4', '0.0.0.0', HelloPack[1], HelloPack[0] , len(neighbord))
 
     packet = ipHeader+OSPFHeader+HelloPack[0]
 
