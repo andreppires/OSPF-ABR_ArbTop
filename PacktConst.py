@@ -43,7 +43,7 @@ def createIPheader(dest_ip, source_ip, ttl):
     # ip header fields
     ip_ihl = 5
     ip_ver = 4
-    ip_tos = 48
+    ip_tos = 0
     ip_tot_len = 0  # kernel will fill the correct total length
     ip_id = (randint(0, 9999))  # random: should not be the same
     ip_frag_off = 0
@@ -73,7 +73,6 @@ def createOSPFHeader(type, rid, aid, helloLen, packHello, lenNeig) :
     autype= 0 #TODO
     Authentic= 0 #TODO
     Autentic2= 0 #TODO
-
     ospfheader= struct.pack(OSPF_HDR, version, typeof, pcklength, routerID, AreaID, checksum, autype, Authentic, Autentic2)
 
     ##-- Checksum --##
@@ -85,14 +84,13 @@ def createOSPFHeader(type, rid, aid, helloLen, packHello, lenNeig) :
     return ospfheader
 
 
-def createHelloPck(netmask, DR, BDR, Neighbors):
-
+def createHelloPck(netmask, DR, BDR, Neighbors, rpri, helllo, routDeadInterval):
 
     networkmask = IPtoDec(netmask)
-    helloint = 10
+    helloint = int(helllo)
     Options = 2  # TODO verificar que options sao estas
-    routerPri = 1  # TODO verificar qual o valor correto
-    routDeadInt = 40 # TODO verificar qual o valor correto
+    routerPri = int(rpri)  # TODO verificar qual o valor correto
+    routDeadInt = int(routDeadInterval) # TODO verificar qual o valor correto
     DesigRout = IPtoDec(DR)
     BackupDesigRout = IPtoDec(BDR)
 

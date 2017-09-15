@@ -2,9 +2,12 @@ from socket import *
 from struct import pack
 from binascii import b2a_hex
 
+from utils import getIPAllInterfaces
+
 MCAST_GROUP = '224.0.0.5'
+BIND_ADDR = '0.0.0.0'
 PROTO = 89
-BUFSIZE = 10240
+BUFSIZE = 1024
 
 OSPF_TYPE_IGP = '59'
 HELLO_PACKET = '01'
@@ -22,15 +25,15 @@ class mcast(object):
         self.proto = PROTO
         s = socket(AF_INET, SOCK_RAW, self.proto)
         s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        mcast = pack('4sl', inet_aton(self.mcast_group), INADDR_ANY)
-        s.setsockopt(IPPROTO_IP, IP_ADD_MEMBERSHIP, mcast)
+        s.bind((self.mcast_group, self.proto))
+        netinterfaces=getIPAllInterfaces().items()
+        for x in range(0, len(netinterfaces)):
+            if netinterfaces[x][0]=='lo':
+                continue
+            else:
+                mcast = inet_aton(self.mcast_group)+inet_aton(netinterfaces[x][1])
+                s.setsockopt(IPPROTO_IP, IP_ADD_MEMBERSHIP, str(mcast))
         return s
-
     def recv(self, s):
         self.s = s
         return self.s.recvfrom(self.bufsize)
-
-
-def td(r):
-    for i in r:
-        return int(b2a_hex(i), 16)
