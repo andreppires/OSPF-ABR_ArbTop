@@ -1,5 +1,9 @@
 import threading
+
+import os
+
 from PacktReceiver import startReceiver
+from Receiver import receiver
 from TimeProcessing import TimeStart
 from Deliver import deliver
 from PacktConst import *
@@ -19,8 +23,11 @@ def timeKeeping(hell,rpi,rdi,rid,aid):
     TimeStart(hell,rpi,rdi,rid, aid)
 
 
-def receivedOSPFpackets():
+def receivedOSPFMulticastpackets():
     startReceiver()
+
+def receivedirectPackets(add):
+    receiver(add)
 
 def interfaceStatusChanges():
     return 0
@@ -31,6 +38,10 @@ def monitors():
 
 
 def main():
+
+    #Stop ferewall service to allow all the packets
+    bashCommand = "sudo systemctl stop firewalld.service"
+    os.system(bashCommand)
 
     ### Read configuration files ###
     f = open('./configs/routerID', 'r')             #routerID
@@ -55,19 +66,12 @@ def main():
 
     # Thread(configuration)
 
-    Thread(receivedOSPFpackets)
+    Thread(receivedirectPackets('10.10.10.2'))
     Thread(timeKeeping(hellointerval, RouterPriority, routerDeadInterval, routerID, AreaID))
+    Thread(receivedOSPFMulticastpackets)
 
     # Thread(interfaceStatusChanges)
     # Thread(monitors)
-
-    #To test
-    #ipHeader = createIPheader('224.0.0.5', '20.20.20.1',1)
-    #neighbord = ['4.5.6.7','2.2.2.2']
-    #HelloPack = createHelloPck('255.255.255.0','3.4.5.6' , '6.7.8.9', neighbord, 1, 10, 40)
-    #OSPFHeader = createOSPFHeader(1, '1.2.3.4', '0.0.0.0', HelloPack[1], HelloPack[0] , len(neighbord))
-    #packet =OSPFHeader+HelloPack[0]
-    #deliver(packet, '20.20.20.1')
 
 
 if __name__ == '__main__':

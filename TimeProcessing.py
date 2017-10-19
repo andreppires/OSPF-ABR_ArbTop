@@ -5,7 +5,7 @@ from PacktConst import createIPheader, createHelloPck, createOSPFHeader
 
 
 def TimeStart(Helloint,rpi, rdi,rid, aid):
-    #sleep(15) # TODO dar tempo para ver se alguem esta on no link
+    sleep(15) # TODO dar tempo para ver se alguem esta on no link
     while True:
 
         neighbord = ['4.5.6.7', '2.2.2.2']

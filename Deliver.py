@@ -2,9 +2,6 @@
 import socket, sys
 from struct import *
 
-import struct
-
-from utils import getIPAllInterfaces
 proto=89
 multicast_group= '224.0.0.5'
 
