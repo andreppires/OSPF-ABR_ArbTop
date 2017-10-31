@@ -89,8 +89,8 @@ def createHelloPck(netmask, DR, BDR, Neighbors, rpri, helllo, routDeadInterval):
     networkmask = IPtoDec(netmask)
     helloint = int(helllo)
     Options = 2  # TODO verificar que options sao estas
-    routerPri = int(rpri)  # TODO verificar qual o valor correto
-    routDeadInt = int(routDeadInterval) # TODO verificar qual o valor correto
+    routerPri = int(rpri)
+    routDeadInt = int(routDeadInterval)
     DesigRout = IPtoDec(DR)
     BackupDesigRout = IPtoDec(BDR)
 
@@ -107,5 +107,4 @@ def createHelloPck(netmask, DR, BDR, Neighbors, rpri, helllo, routDeadInterval):
     helloLen= struct.calcsize(novaStruct)
 
     return hello, helloLen
-
 

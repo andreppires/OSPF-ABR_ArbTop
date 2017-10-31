@@ -18,6 +18,5 @@ def deliver(packet, addr_int):
         return 'Socket not be created. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 
     # Send the packet finally - the port specified has no effect
-    #print "Enviar para:"+ dest_ip
     s.sendto(packet, multicat_group)	# put this in a loop if you want to flood the target
     return 0
