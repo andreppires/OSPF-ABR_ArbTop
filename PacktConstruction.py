@@ -1,10 +1,14 @@
 from random import randint
 import socket,struct
 
+from utils import IPtoDec
+
 OSPF_HELLO = "> L HBB L L L"
 OSPF_HDR = "> BBH L L HH L L"
 OSPF_HDR_LEN = struct.calcsize(OSPF_HDR)
 OSPF_HELLO_LEN= struct.calcsize(OSPF_HELLO)
+
+
 
 def createchecksum(msg, lenN):
     lenPck=((lenN*4)+44)
@@ -29,14 +33,6 @@ def createchecksum(msg, lenN):
     checksum = compl ^ 0xffff
     return hex(checksum)
 
-def IPtoDec(ip):
-    parts = ip.split('.')
-    return (int(parts[0]) << 24) + (int(parts[1]) << 16) + \
-         (int(parts[2]) << 8) + int(parts[3])
-
-def DectoIP(dec):
-    return '.'.join([str(dec >> (i << 3) & 0xFF)
-          for i in range(4)[::-1]])
 
 def createIPheader(dest_ip, source_ip, ttl):
 

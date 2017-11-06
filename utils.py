@@ -3,7 +3,30 @@ import socket
 import fcntl
 import struct
 
-def l():
+import binascii
+
+def IPtoDec(ip):
+    parts = ip.split('.')
+    return (int(parts[0]) << 24) + (int(parts[1]) << 16) + \
+         (int(parts[2]) << 8) + int(parts[3])
+
+def DectoIP(dec):
+    return '.'.join([str(dec >> (i << 3) & 0xFF)
+          for i in range(4)[::-1]])
+
+def IPtoHex(ip):
+    return binascii.hexlify(socket.inet_aton(ip))
+
+def IPinNetwork( ip, network, mask):
+    ipaddr = int(''.join([ '%02x' % int(x) for x in ip.split('.')]), 16)
+    networkaddr = int(''.join([ '%02x' % int(x) for x in network.split('.')]), 16)
+    netmask = IPtoDec(mask)
+    if (ipaddr & netmask) == (networkaddr & netmask):
+        return True
+    else:
+        return False
+
+def getAllInterfaces():
     return os.listdir('/sys/class/net/')
 
 def getIPofInterface(interface):
@@ -54,5 +77,3 @@ def getInterfaceByIP(ip):
         if info[x] == ip:
             return x
     return 0
-
-getIPofInterface('ens37')

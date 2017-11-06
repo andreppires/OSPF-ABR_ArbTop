@@ -1,6 +1,8 @@
 import time, threading
 
 from Deliver import deliver
+from HelloPacket import HelloPacket
+from Neighbord import neighbord
 from PacktConstruction import createHelloPck, createOSPFHeader
 
 
@@ -36,7 +38,7 @@ class interface:
                               3:"Point-to-point",
                               4:"DR Other",
                               5:"Backup",
-                              5:"DR"}
+                              6:"DR"}
 
         self.thread = threading.Thread(target=self.statelife)
         self.thread.daemon = True
@@ -74,14 +76,93 @@ class interface:
         print "Hello enviado: interface"+ self.IPInterfaceAddress
 
     def statelife(self):
+        self.State=2 #WaitTimer
         time.sleep(self.WaitTimer)
-        while self.State != 0:
+        while self.State != 0 and self.State !=1:
             if self.HelloTimer == 0:
                 self.sendHello()
                 self.HelloTimer=self.HelloInterval
             time.sleep(1)
             self.decreaseHelloTimer()
-            #self.decreaseWaitTimer()
+
+    def packetReceived(self, packet):
+        if packet.getType() == 1:
+            self.readHello(packet)
+        else:
+            print "nao sei o tipo de pacote"
+            pass
+
+
+    def readHello(self,packet):
+
+        if self.RouterID in packet.getNNeighbors():
+            # estou listado no Hello do vizinho
+            for x in self.Neighbours:
+                if x.getNeighbordID() == packet.RouterID:
+                    #   ja era vizinho
+                    x.updateFromHello(packet)
+                    return 1    # sucess
+            #   ainda nao o tinha como vizinho
+            self.Neighbours.append(neighbord(packet.RouterDeadInterval, packet.RouterID, packet.RouterPri,
+                                              packet.sourceRouter, packet.Options, packet.DesignatedRouter,
+                                              packet.BackupDesignatedRouter))
+            return 1    # sucess
+        else:
+            # ainda nao sou vizinho
+            pass
+
+
+    ### Events causing interface state changes 9.2
+    def InterfaceUp(self):
+        self.State = 2  # Waiting
+
+    def WaitTimer(self):
+        if self.DesignatedRouter == '0.0.0.0':
+            self.State = 6  # Designated Router
+        else:
+            if self.BackupDesignatedRouter == '0.0.0.0':
+                self.State = 5  # Backup Designated Router
+            else:
+                self.State = 4  # DR Other
+
+    def BackupSeen(self, dr, ID):
+        if dr == 0:  # alguem ja e BDR:
+            self.State = 4  # DR Other
+            self.BackupDesignatedRouter = ID
+        elif dr == 1:   # alguem ja e DR e nao ha BDR
+            self.State = 5  # Backup Designated Router
+            self.DesignatedRouter = ID
+            self.BackupDesignatedRouter = self.RouterID
+
+    def NeighborChange(self):
+        self.DesignatedRouter = '0.0.0.0'
+        self.BackupDesignatedRouter = '0.0.0.0'
+        self.State = 2  # Waiting
+
+
+    def LoopIn(self):
+        self.State = 1  # Loopback
+
+    def UnloopInd(self):
+        self.State = 0  # Down
+
+    def InterfaceDown(self):
+        self.State = 0  # Down
+        # reset as interfaces
+        self.DesignatedRouter = '0.0.0.0'
+        self.BackupDesignatedRouter = '0.0.0.0'
+        self.InterfaceOutputCost = 10
+        self.RxmtInterval = 30
+
+    def DRElection(self):
+
+
+
+        pass
+
+
+
+
 
 
 

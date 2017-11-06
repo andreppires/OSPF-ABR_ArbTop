@@ -27,14 +27,24 @@ class neighbord():
         self.thread = threading.Thread(self.stateLife())
         self.thread.daemon = True
         self.thread.start()
+        print "novo vizinho"
 
     def stateLife(self):
         self.state = 1
         while self.state != 0:
-            self.inativatyTimer = self.inativatyTimer - 1
+            self.decreaseInativatyTimer()
             if(self.inativatyTimer  == 0):
                 self.state = 0
             time.sleep(1)
 
     def getNeighbordID(self):
         return self.neighbordID
+
+    def decreaseInativatyTimer(self):
+        self.inativatyTimer = self.inativatyTimer - 1
+
+    def updateFromHello(self, packet):
+        # TODO verificar se houve mudancas no DR (ou BDR?)
+        # TODO actualizar os dados
+        print "atualizacao vizinho"
+        pass
