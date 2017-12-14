@@ -29,7 +29,7 @@ class cmdOSPF(cmd.Cmd):
         ### {interfacename}
         self.StartInterfacesList()
 
-        self.thread = threading.Thread(target=self.multicastReceiver)
+        self.thread = threading.Thread(target=self.multicastReceiver, args=())
         self.thread.daemon = True
         self.thread.start()
 
@@ -51,6 +51,12 @@ class cmdOSPF(cmd.Cmd):
         return True
 
     def do_quit(self, line):
+        """the same as exit"""
+        print
+        "Bye!"
+        return True
+
+    def do_bye(self, line):
         """the same as exit"""
         print
         "Bye!"

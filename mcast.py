@@ -131,7 +131,6 @@ def readPack(addr, data):
                 print "Designated Router: %s" % designRouter
                 print "Backup Designated Router: %s\n" % backdesignRouter
 
-            #TODO retirar os neighbors
             neighbors = []
             NumNeighbors = (packet_lenght- 44)/4    # 44 = lenght OSPF packet without neighbors with LLS Data Block
                                                     # 4  = #bits per neighbor

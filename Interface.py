@@ -1,4 +1,5 @@
 import time, threading
+from operator import itemgetter
 
 from Deliver import deliver
 from HelloPacket import HelloPacket
@@ -40,7 +41,7 @@ class interface:
                               5:"Backup",
                               6:"DR"}
 
-        self.thread = threading.Thread(target=self.statelife)
+        self.thread = threading.Thread(target=self.statelife, args=())
         self.thread.daemon = True
         self.thread.start()
 
@@ -59,57 +60,71 @@ class interface:
     def resetWaitTimer(self):
         self.WaitTimer=self.RouterDeadInterval
 
-    def getNeihbordIDs(self):
-        out=[]
+    def getNeighbords(self):
+        aux=[]
         for x in self.Neighbours:
-            out.append(x.getNeighbordID())
-        return out
+            aux.append(x['RouterID'])
+        return aux
 
     def sendHello(self):
-        neighbords=self.getNeihbordIDs()
-        HelloPack = createHelloPck(self.IPInterfaceMask, self.DesignatedRouter, self.BackupDesignatedRouter,neighbords
-                                   , self.RouterPriority, self.HelloInterval,
-                                   self.RouterDeadInterval)
+        neighbords=self.getNeighbords()
+        HelloPack = createHelloPck(self.IPInterfaceMask, self.DesignatedRouter, self.BackupDesignatedRouter,neighbords,
+                                   self.RouterPriority, self.HelloInterval, self.RouterDeadInterval)
         OSPFHeader = createOSPFHeader(1, self.RouterID, self.AreaID, HelloPack[1], HelloPack[0], len(neighbords))
         packet = OSPFHeader + HelloPack[0]
         deliver(packet, self.IPInterfaceAddress)
-        print "Hello enviado: interface"+ self.IPInterfaceAddress
+        print "Hello enviado: interface" + self.IPInterfaceAddress
 
     def statelife(self):
-        self.State=2 #WaitTimer
-        time.sleep(self.WaitTimer)
-        while self.State != 0 and self.State !=1:
-            if self.HelloTimer == 0:
-                self.sendHello()
-                self.HelloTimer=self.HelloInterval
+
+        self.State = 2  # WaitTimer
+        self.sendHello()
+        self.resetHelloTimer()
+        for x in range(0,self.WaitTimer):
             time.sleep(1)
             self.decreaseHelloTimer()
+            if self.HelloTimer == 0:
+                self.sendHello()
+                self.resetHelloTimer()
+
+        self.DRElection()
+
+        while self.State != 0 and self.State !=1:
+            time.sleep(1)
+            self.decreaseHelloTimer()
+            if self.HelloTimer == 0:
+                self.sendHello()
+                self.resetHelloTimer()
+
 
     def packetReceived(self, packet):
         if packet.getType() == 1:
             self.readHello(packet)
         else:
-            print "nao sei o tipo de pacote"
             pass
-
 
     def readHello(self,packet):
 
         if self.RouterID in packet.getNNeighbors():
-            # estou listado no Hello do vizinho
+
+            found = False
             for x in self.Neighbours:
-                if x.getNeighbordID() == packet.RouterID:
-                    #   ja era vizinho
-                    x.updateFromHello(packet)
-                    return 1    # sucess
-            #   ainda nao o tinha como vizinho
-            self.Neighbours.append(neighbord(packet.RouterDeadInterval, packet.RouterID, packet.RouterPri,
-                                              packet.sourceRouter, packet.Options, packet.DesignatedRouter,
-                                              packet.BackupDesignatedRouter))
-            return 1    # sucess
-        else:
-            # ainda nao sou vizinho
-            pass
+                if x['RouterID'] == packet.RouterID:
+                    found = True
+                    self.getNeighbord(packet.RouterID).updateFromHello(packet)
+                    continue
+            if found == False:
+                print "Novo Vizinho!"
+                self.Neighbours.append({'RouterID': packet.RouterID,
+                                        'Neighbord-object': neighbord(self, packet.RouterDeadInterval, packet.RouterID,
+                                                                      packet.RouterPri, packet.sourceRouter,
+                                                                      packet.Options, packet.DesignatedRouter,
+                                                                      packet.BackupDesignatedRouter)})
+
+    def getNeighbord(self, neighID):
+        for x in self.Neighbours:
+            if x['RouterID']==neighID:
+                return x['Neighbord-object']
 
 
     ### Events causing interface state changes 9.2
@@ -125,20 +140,26 @@ class interface:
             else:
                 self.State = 4  # DR Other
 
-    def BackupSeen(self, dr, ID):
-        if dr == 0:  # alguem ja e BDR:
+    def BackupSeen(self, state, DR, BDR):
+        if state == 0:  # alguem ja e BDR:
             self.State = 4  # DR Other
-            self.BackupDesignatedRouter = ID
-        elif dr == 1:   # alguem ja e DR e nao ha BDR
+            self.BackupDesignatedRouter = BDR
+            self.DesignatedRouter = DR
+            print "DR Other"
+        elif state == 1:   # alguem ja e DR e nao ha BDR
             self.State = 5  # Backup Designated Router
-            self.DesignatedRouter = ID
-            self.BackupDesignatedRouter = self.RouterID
+            self.DesignatedRouter = DR
+            self.BackupDesignatedRouter = self.IPInterfaceAddress
+            print "sou BDR"
+
 
     def NeighborChange(self):
-        self.DesignatedRouter = '0.0.0.0'
-        self.BackupDesignatedRouter = '0.0.0.0'
-        self.State = 2  # Waiting
+        self.DRElection()
 
+    def RemoveNeighbord(self,routerid):
+
+        self.Neighbours = [i for i in self.Neighbours if i['RouterID'] != routerid]
+        self.NeighborChange()
 
     def LoopIn(self):
         self.State = 1  # Loopback
@@ -154,11 +175,408 @@ class interface:
         self.InterfaceOutputCost = 10
         self.RxmtInterval = 30
 
+
+    ##  Designated Router election -RFC OSPVv2 9.4
     def DRElection(self):
 
+        ## Step (1)
+        listPossible=[]
+        if self.RouterPriority >0:
+            routerItSelf={'RouterID':self.RouterID,
+                          'DR':self.DesignatedRouter,
+                          'BDR':self.BackupDesignatedRouter,
+                          'RouterPriority':self.RouterPriority,
+                          'StateDR':self.StateDR(),
+                          'StateBDR':self.StateBDR(),
+                          'neighbordAddress': self.IPInterfaceAddress}
+            listPossible.append(routerItSelf)
+
+        for x in self.Neighbours:
+            if x['Neighbord-object'].neighbordPriority >0:
+                routerToAdd={'RouterID':x['Neighbord-object'].neighbordID,
+                             'DR':x['Neighbord-object'].neighbordDR,
+                             'BDR':x['Neighbord-object'].neighbordBDR,
+                             'RouterPriority':x['Neighbord-object'].neighbordPriority,
+                             'StateDR':x['Neighbord-object'].StateDR(),
+                             'StateBDR':x['Neighbord-object'].StateBDR(),
+                             'neighbordAddress':x['Neighbord-object'].neighbordAddress}
+                listPossible.append(routerToAdd)
+
+        ## Step (2)
+        listPossibleBDR = []
+        for x in listPossible:
+            if x['StateDR'] == True:
+                continue
+            else:
+                listPossibleBDR.append(x)
+        listofBDR = []
+        for x in listPossibleBDR:
+            if x['StateBDR'] == True:
+                listofBDR.append(x)
+        statebdr=False
+        if len(listofBDR)== 1:
+            if listofBDR[0]['RouterID'] == routerItSelf['RouterID']:    # Eu sou o BDR
+                statebdr = True
+                bdr = self.IPInterfaceAddress
+                for x in listPossible:
+                    if x['RouterID'] == routerItSelf['RouterID']:
+                        x['StateBDR'] = True
+                        x['BDR'] = bdr
+            else:
+                bdr= listofBDR[0]['neighbordAddress']
+                for x in listPossible:
+                    if x['RouterID'] == listofBDR[0]['RouterID']:
+                        x['StateBDR'] = True
+                        x['BDR'] = bdr
+        else:
+            if len(listofBDR)>0:
+
+                routerid=listofBDR[0]['RouterID']
+                for x in listofBDR:
+                    # TODO not tested
+                    if x['RouterID']>routerid:
+                        routerid=x['RouterID']
+                        pass
+                bdr= x['neighbordAddress']
+                for j in listPossible:
+                    if j['RouterID'] == x['RouterID']:
+                        j['StateBDR'] = True
+                        j['BDR'] = x['neighbordAddress']
+            else:
+                listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'), reverse=True)
+                if len(listofBDR)== 0:
+                    statebdr= False
+                    bdr = '0.0.0.0'
+                else:
+                    if len(listofBDR)==1:
+                        if listofBDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                            statebdr = True
+                            bdr = self.IPInterfaceAddress
+                            for x in listPossible:
+                                if x['RouterID'] == routerItSelf['RouterID']:
+                                    x['StateBDR'] = True
+                                    x['BDR'] = bdr
+                        else:
+                            bdr= listofBDR[0]['neighbordAddress']
+                            for x in listPossible:
+                                if x['RouterID'] == listofBDR[0]['RouterID']:
+                                    x['StateBDR'] = True
+                                    x['BDR'] = bdr
+                    else:
+                        if listofBDR[0]['RouterPriority'] == listofBDR[1]['RouterPriority']:
+                            #tie
+                            del listPossibleBDR[:]
+                            for x in listofBDR:
+                                if x['RouterPriority'] == listofBDR[0]['RouterPriority']:
+                                    listPossibleBDR.append(x)
+
+                            listPossibleBDR.sort(listPossibleBDR, key=itemgetter('RouterID'), reverse=True)
+                            if listPossibleBDR[0]['RouterID'] == routerItSelf['RouterID']:   # Eu sou o BDR
+                                bdr= self.IPInterfaceAddress
+                                statebdr = True
+                                for x in listPossible:
+                                    if x['RouterID'] == routerItSelf['RouterID']:
+                                        x['StateBDR'] = True
+                                        x['BDR'] = self.IPInterfaceAddress
+                            else:
+                                bdr= listPossibleBDR[0]['neighbordAddress']
+                                for x in listPossible:
+                                    if x['RouterID'] == listPossibleBDR[0]['RouterID']:
+                                        x['StateBDR'] = True
+                                        x['BDR'] = listPossibleBDR[0]['neighbordAddress']
+
+        # Step(3)
+        listPossibleDR = []
+        for x in listPossible:
+            if x['StateBDR'] == True:
+                continue
+            else:
+                listPossibleDR.append(x)
+        statedr = False
+        listofDR = []
+        for x in listPossibleDR:
+            if x['StateDR'] == True:
+                listofDR.append(x)
+
+        if len(listofDR) == 1:
+            if listofDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                dr = self.IPInterfaceAddress
+                statedr = True
+            else:
+                dr = listofDR[0]['neighbordAddress']
+
+        else:
+            if len(listofDR) == 0:
+                ## O DR e o BDR agora calculado
+
+                dr = bdr
+                statebdr = False
+                bdr = '0.0.0.0'
+                if dr== self.IPInterfaceAddress:
+                    for x in listPossible:
+                        if x['RouterID'] == routerItSelf['RouterID']:
+                            x['StateDR'] = True
+                            x['DR'] = self.IPInterfaceAddress
+                            x['BDR'] = '0.0.0.0'
+                            x['StateBDR'] = False
+                            statedr = True
+                else:
+                    for x in listPossible:
+                        if x['neighbordAddress'] == dr:
+                            x['DR'] = dr
+                            x['StateDR'] = True
+                            x['BDR'] = '0.0.0.0'
+                            x['StateBDR'] = False
+            else:
+                listofDR = sorted(listPossibleDR, key=itemgetter('RouterPriority'), reverse=True)
+                if len(listofDR) == 1:
+                    if listofDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                        dr = listofDR[0]['neighbordAddress']
+                        statedr = True
+
+                        for x in listPossible:
+                            if x['RouterID'] == routerItSelf['RouterID']:
+                                x['StateDR'] = True
+                                x['DR'] = self.IPInterfaceAddress
+                    else:
+                        dr = listofDR[0]['neighbordAddress']
+                        statedr = False
+
+                        for x in listPossible:
+                            if x['RouterID'] == listofDR[0]['RouterID']:
+                                x['StateDR'] = True
+                                x['DR'] = listofDR[0]['neighbordAddress']
+                else:
+                    if listofDR[0]['RouterPriority'] == listofDR[1]['RouterPriority']:
+                        # tie
+                        del listPossibleDR[:]
+                        for x in listofDR:
+                            if x['RouterPriority'] == listofDR[0]['RouterPriority']:
+                                listPossibleDR.append(x)
+
+                        listPossibleDR.sort(listPossibleDR, key=itemgetter('RouterID'), reverse=True)
+                        if listPossibleDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o DR
+                            dr = self.IPInterfaceAddress
+                            statedr = True
+
+                            for x in listPossible:
+                                if x['RouterID'] == routerItSelf['RouterID']:
+                                    x['StateDR'] = True
+                                    x['DR'] = self.IPInterfaceAddress
+                        else:
+                            dr = listPossibleDR[0]['neighbordAddress']
+                            statedr = False
+                            for x in listPossible:
+                                if x['RouterID'] == listPossibleDR[0]['RouterID']:
+                                    x['StateDR'] = True
+                                    x['DR'] = listPossibleDR[0]['neighbordAddress']
+
+        if statebdr or statedr:
+            statedr = False
+            statebdr = False
+            dr = '0.0.0.0'
+            bdr = '0.0.0.0'
+            ## Step (2)
+            listPossibleBDR = []
+            for x in listPossible:
+                if x['StateDR'] == True:
+                    continue
+                else:
+                    listPossibleBDR.append(x)
+            listofBDR = []
+            for x in listPossibleBDR:
+                if x['StateBDR'] == True:
+                    listofBDR.append(x)
+            statebdr = False
+            if len(listofBDR) == 1:
+                if listofBDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                    statebdr = True
+                    bdr = self.IPInterfaceAddress
+                    for x in listPossible:
+                        if x['RouterID'] == routerItSelf['RouterID']:
+                            x['StateBDR'] = True
+                            x['BDR'] = bdr
+                else:
+                    bdr = listofBDR[0]['neighbordAddress']
+                    for x in listPossible:
+                        if x['RouterID'] == listofBDR[0]['RouterID']:
+                            x['StateBDR'] = True
+                            x['BDR'] = bdr
+            else:
+                if len(listofBDR) > 0:
+
+                    routerid = listofBDR[0]['RouterID']
+                    for x in listofBDR:
+                        # TODO not tested
+                        if x['RouterID'] > routerid:
+                            routerid = x['RouterID']
+                            pass
+                    bdr = x['neighbordAddress']
+                    for j in listPossible:
+                        if j['RouterID'] == x['RouterID']:
+                            j['StateBDR'] = True
+                            j['BDR'] = x['neighbordAddress']
+                else:
+                    listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'), reverse=True)
+                    if len(listofBDR) == 0:
+                        statebdr = False
+                        bdr = '0.0.0.0'
+                    else:
+                        if len(listofBDR) == 1:
+                            if listofBDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                                statebdr = True
+                                bdr = self.IPInterfaceAddress
+                                for x in listPossible:
+                                    if x['RouterID'] == routerItSelf['RouterID']:
+                                        x['StateBDR'] = True
+                                        x['BDR'] = bdr
+                            else:
+                                bdr = listofBDR[0]['neighbordAddress']
+                                for x in listPossible:
+                                    if x['RouterID'] == listofBDR[0]['RouterID']:
+                                        x['StateBDR'] = True
+                                        x['BDR'] = bdr
+                        else:
+                            if listofBDR[0]['RouterPriority'] == listofBDR[1]['RouterPriority']:
+                                # tie
+                                del listPossibleBDR[:]
+                                for x in listofBDR:
+                                    if x['RouterPriority'] == listofBDR[0]['RouterPriority']:
+                                        listPossibleBDR.append(x)
+
+                                listPossibleBDR.sort(listPossibleBDR, key=itemgetter('RouterID'), reverse=True)
+                                if listPossibleBDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                                    bdr = self.IPInterfaceAddress
+                                    statebdr = True
+                                    for x in listPossible:
+                                        if x['RouterID'] == routerItSelf['RouterID']:
+                                            x['StateBDR'] = True
+                                            x['BDR'] = self.IPInterfaceAddress
+                                else:
+                                    bdr = listPossibleBDR[0]['neighbordAddress']
+                                    for x in listPossible:
+                                        if x['RouterID'] == listPossibleBDR[0]['RouterID']:
+                                            x['StateBDR'] = True
+                                            x['BDR'] = listPossibleBDR[0]['neighbordAddress']
+
+            # Step(3)
+            listPossibleDR = []
+            for x in listPossible:
+                if x['StateBDR'] == True:
+                    continue
+                else:
+                    listPossibleDR.append(x)
+            statedr = False
+            listofDR = []
+            for x in listPossibleDR:
+                if x['StateDR'] == True:
+                    listofDR.append(x)
+
+            if len(listofDR) == 1:
+                if listofDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                    dr = self.IPInterfaceAddress
+                    statedr = True
+                else:
+                    dr = listofDR[0]['neighbordAddress']
+
+            else:
+                if len(listofDR) == 0:
+                    ## O DR e o BDR agora calculado
+
+                    dr = bdr
+                    statebdr = False
+                    bdr = '0.0.0.0'
+                    if dr == self.IPInterfaceAddress:
+                        for x in listPossible:
+                            if x['RouterID'] == routerItSelf['RouterID']:
+                                x['StateDR'] = True
+                                x['DR'] = self.IPInterfaceAddress
+                                x['BDR'] = '0.0.0.0'
+                                x['StateBDR'] = False
+                                statedr = True
+                    else:
+                        for x in listPossible:
+                            if x['neighbordAddress'] == dr:
+                                x['DR'] = dr
+                                x['StateDR'] = True
+                                x['BDR'] = '0.0.0.0'
+                                x['StateBDR'] = False
+                else:
+                    listofDR = sorted(listPossibleDR, key=itemgetter('RouterPriority'), reverse=True)
+                    if len(listofDR) == 1:
+                        if listofDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
+                            dr = listofDR[0]['neighbordAddress']
+                            statedr = True
+
+                            for x in listPossible:
+                                if x['RouterID'] == routerItSelf['RouterID']:
+                                    x['StateDR'] = True
+                                    x['DR'] = self.IPInterfaceAddress
+                        else:
+                            dr = listofDR[0]['neighbordAddress']
+                            statedr = False
+
+                            for x in listPossible:
+                                if x['RouterID'] == listofDR[0]['RouterID']:
+                                    x['StateDR'] = True
+                                    x['DR'] = listofDR[0]['neighbordAddress']
+                    else:
+                        if listofDR[0]['RouterPriority'] == listofDR[1]['RouterPriority']:
+                            # tie
+                            del listPossibleDR[:]
+                            for x in listofDR:
+                                if x['RouterPriority'] == listofDR[0]['RouterPriority']:
+                                    listPossibleDR.append(x)
+
+                            listPossibleDR.sort(listPossibleDR, key=itemgetter('RouterID'), reverse=True)
+                            if listPossibleDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o DR
+                                dr = self.IPInterfaceAddress
+                                statedr = True
+
+                                for x in listPossible:
+                                    if x['RouterID'] == routerItSelf['RouterID']:
+                                        x['StateDR'] = True
+                                        x['DR'] = self.IPInterfaceAddress
+                            else:
+                                dr = listPossibleDR[0]['neighbordAddress']
+                                statedr = False
+                                for x in listPossible:
+                                    if x['RouterID'] == listPossibleDR[0]['RouterID']:
+                                        x['StateDR'] = True
+                                        x['DR'] = listPossibleDR[0]['neighbordAddress']
 
 
-        pass
+        # DR and BDR Updated
+        self.DesignatedRouter = dr
+        self.BackupDesignatedRouter = bdr
+        if statedr:
+            self.State = 6  # DR
+        else:
+            if statebdr:
+                self.State = 5  # BDR
+            else:
+                self.State = 4  # DR Other
+
+        # Backup Designated Router Updated
+        self.BackupDesignatedRouter = bdr
+
+    def StateDR(self):
+        if self.IPInterfaceAddress == self.DesignatedRouter:
+            return True
+        else:
+            return False
+
+    def StateBDR(self):
+        if self.IPInterfaceAddress == self.BackupDesignatedRouter:
+            return True
+        else:
+            return False
+
+    def getstate(self):
+        return self.State
+
+    def getIPAddr(self):
+        return self.IPInterfaceAddress
 
 
 
