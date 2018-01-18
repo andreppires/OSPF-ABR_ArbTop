@@ -1,8 +1,12 @@
 import cmd
 import threading
+from time import sleep
+
 import mcast
 import utils
+from ASBR import ASBR
 from Interface import interface
+from RouterLSA import RouterLSA
 
 OSPF_TYPE_IGP = '59'
 HELLO_PACKET = '01'
@@ -26,10 +30,14 @@ class cmdOSPF(cmd.Cmd):
         self.IntTransDelay = inttransDelay
 
         self.listInterfaces = []
-        ### {interfacename}
         self.StartInterfacesList()
+        self.ASBR = {}
 
         self.thread = threading.Thread(target=self.multicastReceiver, args=())
+        self.thread.daemon = True
+        self.thread.start()
+
+        self.thread = threading.Thread(target=self.incrementLSATimer, args=())
         self.thread.daemon = True
         self.thread.start()
 
@@ -62,6 +70,9 @@ class cmdOSPF(cmd.Cmd):
         "Bye!"
         return True
 
+    def do_asbr(self, line):
+        self.ASBR[line][0].printASBR()
+
     def do_list(self, line):
         """list interfaces"""
         print
@@ -77,7 +88,8 @@ class cmdOSPF(cmd.Cmd):
         netmask = utils.getNetMaskofInterface(inter)
 
         self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval, self.RouterDeadInterval,
-                                    self.IntTransDelay, self.RouterPriority, self.RouterID), inter)
+                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self), inter, self.RouterID,
+                          area)
 
     def multicastReceiver(self):
         MCAST_GROUP = '224.0.0.5'
@@ -99,10 +111,39 @@ class cmdOSPF(cmd.Cmd):
             self.listInterfaces.append({'interface-name': x, 'ip': utils.getIPofInterface(x),
                                         'netmask': utils.getNetMaskofInterface(x), 'interface-object': None})
 
-    def setInterface(self, object_interface, interface_name):
+    def setInterface(self, object_interface, interface_name, rid, area):
         for x in self.listInterfaces:
             if x['interface-name'] == interface_name:
                 x['interface-object'] = object_interface
+
+        self.createLSA(area, rid)
+
+    def createLSA(self, area, rid):
+
+        # create/Update RouterLSA
+        linkdata = []
+        for x in self.listInterfaces:
+            if x['interface-object'] != None and x['interface-object'].getArea() == area:
+                linkdata.append([x['interface-object'].getDR(), x['interface-object'].getIPIntAddr(), 2, 0,
+                                 x['interface-object'].getMetric()])
+
+        rlsa = RouterLSA(0, 2, 1, rid, rid, 0, 1, 0, len(self.listInterfaces), linkdata)
+        if area in self.ASBR:
+            self.ASBR[area][0].receiveLSA(rlsa)
+        else:
+            x = [ASBR(area), 0]
+            self.ASBR[area] = x
+            self.ASBR[area][0].receiveLSA(rlsa)
+
+    def incrementLSATimer(self):
+        while True:
+            for x in self.ASBR:
+                if self.ASBR[x][1] == 1800:
+                    self.createLSA(self.ASBR[x][0].getArea(), self.RouterID)
+                    self.ASBR[x][1] = 0
+                else:
+                    self.ASBR[x][1] = self.ASBR[x][1] + 1
+            sleep(1)
 
     def WhatInterfaceReceivedthePacket(self, sourceIP):
         for x in range(len(self.listInterfaces)):
@@ -116,3 +157,6 @@ class cmdOSPF(cmd.Cmd):
                 return self.listInterfaces[x]['interface-object']
 
         return 0  # error
+
+    def receiveLSAtoASBR(self, lsa, area):
+        self.ASBR[area][0].receiveLSA(lsa)

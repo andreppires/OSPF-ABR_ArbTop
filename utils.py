@@ -77,3 +77,18 @@ def getInterfaceByIP(ip):
         if info[x] == ip:
             return x
     return 0
+
+
+def fletcher(fin, k, lg):
+    if k not in (16, 32, 64):
+        raise ValueError("Valid choices of k are 16, 32 and 64")
+    nbytes = k // 16
+    mod = 2 ** (8 * nbytes) - 1
+    s = s2 = 0
+    fin = struct.unpack("!"+str(lg/2)+"H", fin)
+    fin = list(fin)
+    for t in fin:
+        s += t
+        s2 += s
+
+    return hex(s % mod + (mod + 1) * (s2 % mod))

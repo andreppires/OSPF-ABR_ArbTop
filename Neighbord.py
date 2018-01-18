@@ -69,23 +69,31 @@ class neighbord():
             self.neighbordPriority = packet.RouterPri
             self.interface.NeighborChange()
 
-        if (packet.DesignatedRouter==packet.sourceRouter and packet.BackupDesignatedRouter=='0.0.0.0'
-            and self.interface.getstate()==2):
-            self.interface.BackupSeen(1,packet.DesignatedRouter, packet.BackupDesignatedRouter)
-
-        if ((packet.DesignatedRouter==packet.sourceRouter and packet.DesignatedRouter != self.neighbordDR) or
-            (packet.sourceRouter == self.neighbordDR and packet.sourceRouter != packet.DesignatedRouter)):
+        if (packet.DesignatedRouter != self.neighbordDR) or (packet.BackupDesignatedRouter != self.neighbordBDR):
+            self.neighbordDR = packet.DesignatedRouter
+            self.neighbordBDR = packet.BackupDesignatedRouter
             self.interface.NeighborChange()
+        else:
 
-        if ((packet.BackupDesignatedRouter==packet.BackupDesignatedRouter and self.interface.getstate==2)):
-            self.interface.BackupSeen(0, packet.DesignatedRouter, packet.BackupDesignatedRouter)
 
-        if ((packet.BackupDesignatedRouter==packet.sourceRouter and packet.BackupDesignatedRouter != self.neighbordBDR)
-            or (packet.sourceRouter == self.neighbordBDR and packet.sourceRouter != packet.BackupDesignatedRouter)):
-            self.interface.NeighborChange()
+            if (packet.DesignatedRouter==packet.sourceRouter and packet.BackupDesignatedRouter=='0.0.0.0'
+                and self.interface.getstate()==2):
+                self.interface.BackupSeen(1,packet.DesignatedRouter, packet.BackupDesignatedRouter)
 
-        self.neighbordDR = packet.DesignatedRouter
-        self.neighbordBDR = packet.BackupDesignatedRouter
+            if ((packet.DesignatedRouter==packet.sourceRouter and packet.DesignatedRouter != self.neighbordDR) or
+                (packet.sourceRouter == self.neighbordDR and packet.sourceRouter != packet.DesignatedRouter)):
+
+                self.interface.NeighborChange()
+
+            if ((packet.BackupDesignatedRouter==packet.BackupDesignatedRouter and self.interface.getstate==2)):
+                self.interface.BackupSeen(0, packet.DesignatedRouter, packet.BackupDesignatedRouter)
+
+            if ((packet.BackupDesignatedRouter==packet.sourceRouter and packet.BackupDesignatedRouter != self.neighbordBDR)
+                or (packet.sourceRouter == self.neighbordBDR and packet.sourceRouter != packet.BackupDesignatedRouter)):
+                self.interface.NeighborChange()
+
+            self.neighbordDR = packet.DesignatedRouter
+            self.neighbordBDR = packet.BackupDesignatedRouter
 
 
 

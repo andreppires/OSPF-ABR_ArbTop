@@ -4,13 +4,15 @@ from operator import itemgetter
 from Deliver import deliver
 from HelloPacket import HelloPacket
 from Neighbord import neighbord
+from NetworkLSA import NetworkLSA
 from PacktConstruction import createHelloPck, createOSPFHeader
 
 
 class interface:
     """Interface class"""
     def __init__(self, type, ipint, ipintmask, areaID, helloint, routerDeadInterval, IntTransDelay,
-                 routerPriority, rid):
+                 routerPriority, rid, router):
+        self.routerclass = router
         self.Type = type
         self.State = 1
         self.IPInterfaceAddress = ipint
@@ -45,7 +47,8 @@ class interface:
         self.thread.daemon = True
         self.thread.start()
 
-
+    def getMetric(self):
+        return self.InterfaceOutputCost
 
 
     def decreaseHelloTimer(self):
@@ -96,6 +99,15 @@ class interface:
                 self.sendHello()
                 self.resetHelloTimer()
 
+    def havetoNLSA(self):
+        if self.DesignatedRouter == self.IPInterfaceAddress and len(self.Neighbours)>0:
+            return True
+        else:
+            return False
+
+    def createNLSA(self):
+        newNLSA = NetworkLSA(0,2,2,self.IPInterfaceAddress,self.RouterID,self.IPInterfaceMask, self.getNeighbords())
+        self.routerclass.receiveLSAtoASBR(newNLSA, self.AreaID)
 
     def packetReceived(self, packet):
         if packet.getType() == 1:
@@ -115,11 +127,14 @@ class interface:
                     continue
             if found == False:
                 print "Novo Vizinho!"
+
                 self.Neighbours.append({'RouterID': packet.RouterID,
                                         'Neighbord-object': neighbord(self, packet.RouterDeadInterval, packet.RouterID,
                                                                       packet.RouterPri, packet.sourceRouter,
                                                                       packet.Options, packet.DesignatedRouter,
                                                                       packet.BackupDesignatedRouter)})
+                if self.havetoNLSA():
+                    self.createNLSA()
 
     def getNeighbord(self, neighID):
         for x in self.Neighbours:
@@ -155,6 +170,8 @@ class interface:
 
     def NeighborChange(self):
         self.DRElection()
+        if self.havetoNLSA():
+            self.createNLSA()
 
     def RemoveNeighbord(self,routerid):
 
@@ -201,7 +218,7 @@ class interface:
                              'StateBDR':x['Neighbord-object'].StateBDR(),
                              'neighbordAddress':x['Neighbord-object'].neighbordAddress}
                 listPossible.append(routerToAdd)
-
+        print "lista possiveis", listPossible
         ## Step (2)
         listPossibleBDR = []
         for x in listPossible:
@@ -269,8 +286,8 @@ class interface:
                             for x in listofBDR:
                                 if x['RouterPriority'] == listofBDR[0]['RouterPriority']:
                                     listPossibleBDR.append(x)
-
-                            listPossibleBDR.sort(listPossibleBDR, key=itemgetter('RouterID'), reverse=True)
+                            if len(listPossibleBDR) != 0:
+                                listPossibleBDR.sort(listPossibleBDR, key=itemgetter('RouterID'), reverse=True)
                             if listPossibleBDR[0]['RouterID'] == routerItSelf['RouterID']:   # Eu sou o BDR
                                 bdr= self.IPInterfaceAddress
                                 statebdr = True
@@ -577,6 +594,18 @@ class interface:
 
     def getIPAddr(self):
         return self.IPInterfaceAddress
+
+    def getDR(self):
+        return self.DesignatedRouter
+
+    def getIPIntAddr(self):
+        return self.IPInterfaceAddress
+
+    def getMetric(self):
+        return self.InterfaceOutputCost
+
+    def getArea(self):
+        return self.AreaID
 
 
 
