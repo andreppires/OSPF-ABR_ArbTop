@@ -33,6 +33,7 @@ class interface:
         self.RxmtInterval = 30
         self.Autye= None
         self.AuthenticationKey = None
+        self.TypeofInterface = 3 #Stub
 
 
         self.InterfaceStates={0:"Down",
@@ -575,6 +576,7 @@ class interface:
                 self.State = 4  # DR Other
 
         # Update LSAs
+        self.TypeofInterfaceChange()
         if self.havetoNLSA():
             self.createNLSA()
         self.routerclass.createLSA(self.AreaID, self.RouterID)
@@ -616,7 +618,13 @@ class interface:
         return self.IPInterfaceMask
 
     def getTypeLink(self):
-        return 2 #TODO transit(2) or stub(3)?
+        return self.TypeofInterface
+
+    def TypeofInterfaceChange(self):
+        if len(self.Neighbours) == 0:
+            self.TypeofInterface = 3
+        else:
+            self.TypeofInterface =2
 
 
 
