@@ -135,6 +135,7 @@ class interface:
                                                                       packet.BackupDesignatedRouter)})
                 if self.havetoNLSA():
                     self.createNLSA()
+                    self.routerclass.createLSA(self.AreaID, self.RouterID)
 
     def getNeighbord(self, neighID):
         for x in self.Neighbours:
@@ -170,8 +171,7 @@ class interface:
 
     def NeighborChange(self):
         self.DRElection()
-        if self.havetoNLSA():
-            self.createNLSA()
+
 
     def RemoveNeighbord(self,routerid):
 
@@ -574,6 +574,11 @@ class interface:
             else:
                 self.State = 4  # DR Other
 
+        # Update LSAs
+        if self.havetoNLSA():
+            self.createNLSA()
+        self.routerclass.createLSA(self.AreaID, self.RouterID)
+
         # Backup Designated Router Updated
         self.BackupDesignatedRouter = bdr
 
@@ -607,7 +612,11 @@ class interface:
     def getArea(self):
         return self.AreaID
 
+    def getIPInterfaceMask(self):
+        return self.IPInterfaceMask
 
+    def getTypeLink(self):
+        return 2 #TODO transit(2) or stub(3)?
 
 
 

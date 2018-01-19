@@ -119,15 +119,23 @@ class cmdOSPF(cmd.Cmd):
         self.createLSA(area, rid)
 
     def createLSA(self, area, rid):
-
         # create/Update RouterLSA
         linkdata = []
         for x in self.listInterfaces:
             if x['interface-object'] != None and x['interface-object'].getArea() == area:
-                linkdata.append([x['interface-object'].getDR(), x['interface-object'].getIPIntAddr(), 2, 0,
-                                 x['interface-object'].getMetric()])
-
-        rlsa = RouterLSA(0, 2, 1, rid, rid, 0, 1, 0, len(self.listInterfaces), linkdata)
+                typeLink = x['interface-object'].getTypeLink()
+                if typeLink == 2:  # transit network
+                    linkdata.append([x['interface-object'].getDR(), x['interface-object'].getIPIntAddr(), typeLink,
+                                     0, x['interface-object'].getMetric()])
+                else:
+                    if typeLink == 3:  # stub
+                        networkIP = utils.getNetworkIP(x['interface-object'].getIPIntAddr(),
+                                                       x['interface-object'].getIPInterfaceMask())
+                        linkdata.append([networkIP, x['interface-object'].getIPInterfaceMask(),
+                                         typeLink, 0, x['interface-object'].getMetric()])
+                    else:
+                        "Error creating LSA. Link Type not supported"
+        rlsa = RouterLSA(0, 2, 1, rid, rid, 0, 1, 0, len(linkdata), linkdata)
         if area in self.ASBR:
             self.ASBR[area][0].receiveLSA(rlsa)
         else:
@@ -160,3 +168,4 @@ class cmdOSPF(cmd.Cmd):
 
     def receiveLSAtoASBR(self, lsa, area):
         self.ASBR[area][0].receiveLSA(lsa)
+

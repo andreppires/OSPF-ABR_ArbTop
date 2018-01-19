@@ -26,6 +26,14 @@ def IPinNetwork( ip, network, mask):
     else:
         return False
 
+def getNetworkIP(ipadd, netmask):
+    splitted = ipadd.split('.')
+    if netmask == '255.255.255.0':
+        return splitted[0]+'.'+splitted[1]+'.'+splitted[2]+'.0'
+    if netmask == '255.255.0.0':
+        return splitted[0] + '.' + splitted[1] + '.0.0'
+    print "Netmask not supported!"
+
 def getAllInterfaces():
     return os.listdir('/sys/class/net/')
 
