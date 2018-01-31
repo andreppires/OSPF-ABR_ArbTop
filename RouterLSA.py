@@ -20,6 +20,7 @@ class RouterLSA(LSAHeader):
         print "Router LSA:"
         print "Link ID          ADV Router      Age     Seq#        Link count"
         print self.getLSID(),"      ",self.getADVRouter(),"      ",self.getAge(),"      ", self.getSeqNumber(),"      ", len(self.LinksData)
+        print self.LinksData
 
     def calculateLength(self, ck):
         hdlen = self.getLengthHeader(ck)

@@ -1,11 +1,11 @@
 import time, threading
 from operator import itemgetter
 
+from DatabaseDescriptionPacket import DatabaseDescriptionPacket
 from Deliver import deliver
 from HelloPacket import HelloPacket
 from Neighbord import neighbord
 from NetworkLSA import NetworkLSA
-from PacktConstruction import createHelloPck, createOSPFHeader
 
 
 class interface:
@@ -72,11 +72,12 @@ class interface:
 
     def sendHello(self):
         neighbords=self.getNeighbords()
-        HelloPack = createHelloPck(self.IPInterfaceMask, self.DesignatedRouter, self.BackupDesignatedRouter,neighbords,
-                                   self.RouterPriority, self.HelloInterval, self.RouterDeadInterval)
-        OSPFHeader = createOSPFHeader(1, self.RouterID, self.AreaID, HelloPack[1], HelloPack[0], len(neighbords))
-        packet = OSPFHeader + HelloPack[0]
-        deliver(packet, self.IPInterfaceAddress)
+
+        HelloPack = HelloPacket(self.IPInterfaceAddress, 2, 1, self.RouterID, self.AreaID, 0, 0, 0,
+                                0, self.IPInterfaceMask, self.HelloInterval, 2, self.RouterPriority,
+                                self.RouterDeadInterval, self.DesignatedRouter, self.BackupDesignatedRouter, neighbords)
+
+        deliver(HelloPack.getHelloPackettoSend(), self.IPInterfaceAddress, 0, True)
         print "Hello enviado: interface" + self.IPInterfaceAddress
 
     def statelife(self):
@@ -117,7 +118,6 @@ class interface:
             pass
 
     def readHello(self,packet):
-
         if self.RouterID in packet.getNNeighbors():
 
             found = False
@@ -137,6 +137,27 @@ class interface:
                 if self.havetoNLSA():
                     self.createNLSA()
                     self.routerclass.createLSA(self.AreaID, self.RouterID)
+
+
+                self.startDDProcess()
+
+    def startDDProcess(self):
+
+        # wait for first packet
+        packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress)
+        sourceRouter = packetReceived.getSourceRouter()
+        ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
+
+        # create DD to send
+        packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
+                                0, 2, 1, 1, 1, ddseqnumber, True)
+        packet = packet.packDDtoSend()
+
+        # send packet to source router
+        deliver(packet, self.IPInterfaceAddress, sourceRouter, False )
+
+        # who is the slave?
+
 
     def getNeighbord(self, neighID):
         for x in self.Neighbours:

@@ -3,6 +3,7 @@ from string import atoi
 from struct import pack
 from binascii import b2a_hex, b2a_qp
 
+from DatabaseDescriptionPacket import DatabaseDescriptionPacket
 from HelloPacket import HelloPacket
 from utils import getIPAllInterfaces
 
@@ -138,9 +139,42 @@ def readPack(addr, data):
                 neighbors.append((inet_ntoa(data[pos + 44 + x*4:pos + 48 + x*4])))
 
 
-            return HelloPacket(addr[0], version, type, packet_lenght, RouterID, areaID, checksum, AuType,
+            return HelloPacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
                                authentication1, authentication2, networkmask, helloint, options, routpri, deadint,
                                designRouter, backdesignRouter, neighbors)
+
+
+        if type == 2:
+            # Database Description Packet
+            options = td(data[pos+27])
+            IMMS = td(data[pos+28])
+            I = False
+            M = False
+            MS = False
+            if IMMS >=100:
+                I = True
+                IMMS = IMMS -100
+            if IMMS >=10:
+                M = True
+                IMMS = IMMS -10
+            if IMMS >=1:
+                MS = True
+                IMMS = IMMS -1
+            if DEBUG:
+                print "IMMS = ",IMMS,"- tem de ser igual a 0!"
+
+            DDSequenceNumber = (td(data[pos + 29]) + td(data[pos + 30]) + td(data[pos + 31]) + td(data[pos + 32]))
+            NLSAHeaders = (packet_lenght-36)/20
+            newpos=pos +37
+            packet = DatabaseDescriptionPacket(addr[0], type, version, RouterID, areaID, checksum, AuType,
+                                               authentication1, authentication2, options, I, M, MS, DDSequenceNumber,
+                                               False)
+            for x in range(0,NLSAHeaders):
+                lsa = data[newpos:newpos+20]
+                packet.addLSAHeader(lsa)
+
+            return packet
+
 
     else:
         if DEBUG:
