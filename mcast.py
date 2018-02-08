@@ -50,7 +50,6 @@ class mcast(object):
         self.s = s
         return self.s.recvfrom(self.bufsize)
 
-
 def readPack(addr, data):
     pos = 0
 
