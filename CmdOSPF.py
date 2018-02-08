@@ -7,7 +7,7 @@ import mcast
 import utils
 from ASBR import ASBR
 from Interface import interface
-from RouterLSA import RouterLSA
+from LSAs.RouterLSA import RouterLSA
 
 OSPF_TYPE_IGP = '59'
 HELLO_PACKET = '01'
@@ -101,20 +101,26 @@ class cmdOSPF(cmd.Cmd):
                 continue
             interface_obj.packetReceived(packet)
             
-    def unicastReceiver(self, interfaceaddr):
+    def unicastReceiver(self, interfaceaddr, type, timeout):
         PROTO = 89
         bufferSize = 1500
 
         s = socket(AF_INET, SOCK_RAW, PROTO)
         s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         s.bind((interfaceaddr, PROTO))
-        while True:
-            data, addr = s.recvfrom(bufferSize)
-            packet = mcast.readPack(addr, data)
-            if packet.getType() != 2:
-                print "NOT a DD packet!"
-                continue
-            break
+        if timeout:
+            s.settimeout(10.0)
+        try:
+            while True:
+                data, addr = s.recvfrom(bufferSize)
+                packet = mcast.readPack(addr, data)
+                if packet.getType() != type:
+                    print "not a packet of type: ", type
+                    continue
+                break
+        except Exception:
+            print "time out!"
+            return 0
 
         return packet
 
@@ -146,11 +152,11 @@ class cmdOSPF(cmd.Cmd):
                                          typeLink, 0, x['interface-object'].getMetric()])
                     else:
                         "Error creating LSA. Link Type not supported"
-        rlsa = RouterLSA(0,2,1,rid, rid, 0, 1, 0, len(linkdata), linkdata)
+        rlsa = RouterLSA(None, 0,2,1,rid, rid, 0, 1, 0, 0, 0, 0, len(linkdata), linkdata)
         if area in self.ASBR:
             self.ASBR[area][0].receiveLSA(rlsa)
         else:
-            x = [ASBR(area), 0]
+            x = [ASBR(area, self), 0]
             self.ASBR[area] = x
             self.ASBR[area][0].receiveLSA(rlsa)
 
@@ -181,3 +187,15 @@ class cmdOSPF(cmd.Cmd):
     def receiveLSAtoASBR(self, lsa, area):
         self.ASBR[area][0].receiveLSA(lsa)
 
+    def getASBR(self, areaid):
+        return self.ASBR[areaid][0]
+
+    def getInterfaceIPExcept(self):
+        out = []
+        for x in self.listInterfaces:
+            if x['interface-object'] != None:
+                out.append(x['interface-object'].getIPIntAddr())
+        return out
+
+    def getRouterID(self):
+        return self.RouterID

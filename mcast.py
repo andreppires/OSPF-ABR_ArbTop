@@ -1,11 +1,16 @@
 from socket import *
 from string import atoi
-from struct import pack
 from binascii import b2a_hex, b2a_qp
 
-from DatabaseDescriptionPacket import DatabaseDescriptionPacket
-from HelloPacket import HelloPacket
-from utils import getIPAllInterfaces
+from OSPFPackets.DatabaseDescriptionPacket import DatabaseDescriptionPacket
+from OSPFPackets.HelloPacket import HelloPacket
+from LSAs.LSAHeader import LSAHeader
+from OSPFPackets.LinkStateAcknowledgmentPacket import LinkStateAcknowledgmentPacket
+from OSPFPackets.LinkStateRequestPacket import LinkStateRequestPacket
+from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
+from LSAs.NetworkLSA import NetworkLSA
+from LSAs.RouterLSA import RouterLSA
+from utils import getIPAllInterfaces, IPtoDec
 
 MCAST_GROUP = '224.0.0.5'
 BIND_ADDR = '0.0.0.0'
@@ -19,7 +24,7 @@ LS_REQUEST = '03'
 LS_UPDATE = '04'
 LS_ACKNOWLEDGE = '05'
 
-DEBUG=False
+DEBUG = False
 
 
 class mcast(object):
@@ -48,7 +53,6 @@ class mcast(object):
 
 def readPack(addr, data):
     pos = 0
-
 
     if data:
         if (addr[0]) in str(getIPAllInterfaces()):
@@ -143,38 +147,169 @@ def readPack(addr, data):
                                authentication1, authentication2, networkmask, helloint, options, routpri, deadint,
                                designRouter, backdesignRouter, neighbors)
 
-
         if type == 2:
             # Database Description Packet
-            options = td(data[pos+27])
-            IMMS = td(data[pos+28])
+            options = td(data[pos+26])
+            IMMS = td(data[pos+27])
             I = False
             M = False
             MS = False
-            if IMMS >=100:
+            if IMMS >=4:
                 I = True
-                IMMS = IMMS -100
-            if IMMS >=10:
+                IMMS = IMMS -4
+            if IMMS >=2:
                 M = True
-                IMMS = IMMS -10
+                IMMS = IMMS -2
             if IMMS >=1:
                 MS = True
                 IMMS = IMMS -1
             if DEBUG:
                 print "IMMS = ",IMMS,"- tem de ser igual a 0!"
+            dd1 = str(hex(td(data[pos + 28])))
+            dd2 = str(hex(td(data[pos + 29])))
+            dd3 = str(hex(td(data[pos + 30])))
+            dd4 = str(hex(td(data[pos + 31])))
+            DDSequenceNumber = int(dd1 + dd2[2:] + dd3[2:] + dd4[2:], 16)
 
-            DDSequenceNumber = (td(data[pos + 29]) + td(data[pos + 30]) + td(data[pos + 31]) + td(data[pos + 32]))
-            NLSAHeaders = (packet_lenght-36)/20
-            newpos=pos +37
             packet = DatabaseDescriptionPacket(addr[0], type, version, RouterID, areaID, checksum, AuType,
                                                authentication1, authentication2, options, I, M, MS, DDSequenceNumber,
                                                False)
-            for x in range(0,NLSAHeaders):
+            NLSAHeaders = (packet_lenght-32)/20
+            newpos=pos + 32
+            for x in range(0, NLSAHeaders):
                 lsa = data[newpos:newpos+20]
                 packet.addLSAHeader(lsa)
+                newpos += 20
 
             return packet
 
+        if type == 3:
+            # Link State Request
+            NRequests = (packet_lenght-24)/12
+            packet = LinkStateRequestPacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
+                               authentication1, authentication2)
+            for x in range(0,NRequests):
+                LS1 = str(hex(td(data[pos + 24 + x*12])))
+                LS2 = str(hex(td(data[pos + 25 + x*12])))
+                LS3 = str(hex(td(data[pos + 26 + x*12])))
+                LS4 = str(hex(td(data[pos + 27 + x*12])))
+                LSType = int(LS1 + LS2[2:] +LS3[2:] + LS4[2:], 16)
+
+                LinkStateID = (inet_ntoa(data[pos + 28 + x*12:pos + 32 + x*12]))
+                AdvertisingRouter = inet_ntoa(data[pos + 32 + x*12:pos + 36 + x*12])
+
+
+                Request = {'LSType': LSType, 'LinkStateID':LinkStateID, 'AdvertisingRouter': AdvertisingRouter}
+                packet.receiveRequest(Request)
+
+            return packet
+
+        if type == 4:
+            # Link State Update
+
+            LS1 = str(hex(td(data[pos + 24])))
+            LS2 = str(hex(td(data[pos + 25])))
+            LS3 = str(hex(td(data[pos + 26])))
+            LS4 = str(hex(td(data[pos + 27])))
+            NLSAs = int(LS1 + LS2[2:] + LS3[2:] + LS4[2:], 16)
+
+            # create LSUpdate
+            packet = LinkStateUpdatePacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
+                               authentication1, authentication2, NLSAs)
+
+            newpos = pos + 28
+
+            for x in range(0,NLSAs): #Read the LSAs
+                LSAge = int(str(hex(td(data[newpos]))) + str(hex(td(data[newpos+1])))[2:] ,16)
+                Options = int(hex(td(data[newpos+2])) ,16)
+                LSType = int(str(td(data[newpos+3])) ,16)
+                LSID = (inet_ntoa(data[newpos + 4:newpos +8]))
+                AdvertisingRouter = (inet_ntoa(data[newpos + 8:newpos +12]))
+                LSSeqNum = IPtoDec(inet_ntoa(data[newpos + 12:newpos +16]))
+                LSChecksum = int(str(hex(td(data[newpos + 16]))) + str(hex(td(data[newpos+17])))[2:],16)
+                Length = int(str(hex(td(data[newpos + 18]))) + str(hex(td(data[newpos+19])))[2:] ,16)
+
+                if LSType == 1: # Router-LSA
+                    VEB = td(data[newpos+20])
+                    V = False
+                    E = False
+                    B = False
+                    if VEB >= 4:
+                        V = True
+                        VEB = VEB - 4
+                    if VEB >= 2:
+                        E = True
+                        VEB = VEB - 2
+                    if VEB >= 1:
+                        B = True
+
+                    Nlinks = int(str(hex(td(data[newpos + 22]))) + str(hex(td(data[newpos + 23])))[2:], 16)
+                    position = newpos +24
+                    ListLinks = []
+                    print "NLinks:", Nlinks
+                    for x in range(0, Nlinks):
+                        LinkID = (inet_ntoa(data[position:position +4]))
+                        LinkData = (inet_ntoa(data[position + 4:position +8]))
+                        LinkType = td(data[position + 8])
+                        NMetrics = td(data[position +9])
+                        Metric0 = int(str(hex(td(data[position + 10]))) + str(hex(td(data[position+11])))[2:], 16)
+                        ListLinks.append([LinkID, LinkData, LinkType, NMetrics, Metric0])
+                        position += 12
+                    newRouterLSA = RouterLSA(addr[0], LSAge, Options, LSType, LSID, AdvertisingRouter, LSSeqNum,
+                                             LSChecksum, Length, V, E, B, Nlinks, ListLinks)
+                    packet.receiveLSA(newRouterLSA)
+
+                if LSType == 2:     # Network-LSA
+                    NetMask = (inet_ntoa(data[newpos + 20:newpos +24]))
+                    NAttachedRouters = (Length-24)/4
+                    ListAtt = []
+
+                    for x in range(0, NAttachedRouters):
+                        ListAtt.append((inet_ntoa(data[newpos + 24 + 4*x:newpos +28 + 4*x])))
+
+                    newNetworkLSA = NetworkLSA(addr[0], LSAge, Options, LSType, LSID, AdvertisingRouter, LSSeqNum,
+                                               LSChecksum, Length,NetMask, ListAtt)
+                    packet.receiveLSA(newNetworkLSA)
+
+
+                if LSType == 3:     # Summary-LSA (IP Network)
+                    print "Read of Summary Network LSA not done"
+                    pass
+
+                if LSType == 4:     # Summary-LSA (ASBR)
+                    print "Read of ASBR Summary LSA not done"
+                    pass
+
+                if LSType == 5:     # External-LSA
+                    print "Read of External LSA not done"
+                    pass
+
+                newpos += Length
+            return packet
+
+        if type == 5:
+            # Link State Acknowledge
+            NLSAHeaders = (packet_lenght -24)/20
+
+            LSACK = LinkStateAcknowledgmentPacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
+                                                  authentication1, authentication2)
+
+            newpos = pos + 24
+            for x in range(0, NLSAHeaders):
+                LSAge = int(str(hex(td(data[newpos]))) + str(hex(td(data[newpos + 1])))[2:], 16)
+                Options = int(hex(td(data[newpos + 2])), 16)
+                LSType = int(str(td(data[newpos + 3])), 16)
+                LSID = (inet_ntoa(data[newpos + 4:newpos + 8]))
+                AdvertisingRouter = (inet_ntoa(data[newpos + 8:newpos + 12]))
+                LSSeqNum = IPtoDec(inet_ntoa(data[newpos + 12:newpos + 16]))
+                LSChecksum = int(str(hex(td(data[newpos + 16]))) + str(hex(td(data[newpos + 17])))[2:], 16)
+                Length = int(str(hex(td(data[newpos + 18]))) + str(hex(td(data[newpos + 19])))[2:], 16)
+                newpos +=20
+                lsaH = LSAHeader(addr[0], LSAge, Options, LSType, LSID, AdvertisingRouter,
+                                 LSSeqNum, LSChecksum, Length)
+                LSACK.receceiveNotPackedLSAHEaders(lsaH)
+
+            return LSACK
 
     else:
         if DEBUG:

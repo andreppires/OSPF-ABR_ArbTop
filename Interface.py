@@ -1,11 +1,15 @@
 import time, threading
 from operator import itemgetter
 
-from DatabaseDescriptionPacket import DatabaseDescriptionPacket
+from OSPFPackets.DatabaseDescriptionPacket import DatabaseDescriptionPacket
 from Deliver import deliver
-from HelloPacket import HelloPacket
+from OSPFPackets.HelloPacket import HelloPacket
+from OSPFPackets.LinkStateAcknowledgmentPacket import LinkStateAcknowledgmentPacket
+from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
+from utils import unpackLSAHeader
+from OSPFPackets.LinkStateRequestPacket import LinkStateRequestPacket
 from Neighbord import neighbord
-from NetworkLSA import NetworkLSA
+from LSAs.NetworkLSA import NetworkLSA
 
 
 class interface:
@@ -34,6 +38,7 @@ class interface:
         self.Autye= None
         self.AuthenticationKey = None
         self.TypeofInterface = 3 #Stub
+        self.LSATimer = 60*30
 
 
         self.InterfaceStates={0:"Down",
@@ -50,7 +55,6 @@ class interface:
 
     def getMetric(self):
         return self.InterfaceOutputCost
-
 
     def decreaseHelloTimer(self):
         self.HelloTimer=self.HelloTimer -1
@@ -77,8 +81,11 @@ class interface:
                                 0, self.IPInterfaceMask, self.HelloInterval, 2, self.RouterPriority,
                                 self.RouterDeadInterval, self.DesignatedRouter, self.BackupDesignatedRouter, neighbords)
 
-        deliver(HelloPack.getHelloPackettoSend(), self.IPInterfaceAddress, 0, True)
+        deliver(HelloPack.getHelloPackettoSend(), [self.IPInterfaceAddress], 0, True)
         print "Hello enviado: interface" + self.IPInterfaceAddress
+
+    def decreaseLSATimer(self):
+        self.LSATimer -= 1
 
     def statelife(self):
 
@@ -88,6 +95,7 @@ class interface:
         for x in range(0,self.WaitTimer):
             time.sleep(1)
             self.decreaseHelloTimer()
+            self.decreaseLSATimer()
             if self.HelloTimer == 0:
                 self.sendHello()
                 self.resetHelloTimer()
@@ -97,9 +105,13 @@ class interface:
         while self.State != 0 and self.State !=1:
             time.sleep(1)
             self.decreaseHelloTimer()
+            self.decreaseLSATimer()
             if self.HelloTimer == 0:
                 self.sendHello()
                 self.resetHelloTimer()
+            if self.LSATimer == 0 and self.havetoNLSA():
+                self.createNLSA()
+
 
     def havetoNLSA(self):
         if self.DesignatedRouter == self.IPInterfaceAddress and len(self.Neighbours)>0:
@@ -108,14 +120,20 @@ class interface:
             return False
 
     def createNLSA(self):
-        newNLSA = NetworkLSA(0,2,2,self.IPInterfaceAddress,self.RouterID,self.IPInterfaceMask, self.getNeighbords())
+        newNLSA = NetworkLSA(None, 0,2,2,self.IPInterfaceAddress,self.RouterID, 0, 0, 0,
+                             self.IPInterfaceMask, self.getNeighbords())
         self.routerclass.receiveLSAtoASBR(newNLSA, self.AreaID)
+        self.LSATimer = 60*30
 
     def packetReceived(self, packet):
         if packet.getType() == 1:
             self.readHello(packet)
-        else:
-            pass
+        if packet.getType() == 3:
+            pass #TODO Link State Request
+        if packet.getType() == 4:
+            self.readLSUpdate(packet)
+        if packet.getType() == 5:
+            pass #TODO Read Link State ACK
 
     def readHello(self,packet):
         if self.RouterID in packet.getNNeighbors():
@@ -138,34 +156,218 @@ class interface:
                     self.createNLSA()
                     self.routerclass.createLSA(self.AreaID, self.RouterID)
 
-
-                self.startDDProcess()
+                th = threading.Thread(target=self.startDDProcess, args=())
+                th.daemon = True
+                th.start()
 
     def startDDProcess(self):
+        #ExStart phase
 
         # wait for first packet
-        packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress)
+        packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
         sourceRouter = packetReceived.getSourceRouter()
         ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
-
         # create DD to send
-        packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
+        packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID,
+                                           self.AreaID, 0, 0, 0,
                                 0, 2, 1, 1, 1, ddseqnumber, True)
         packet = packet.packDDtoSend()
 
         # send packet to source router
-        deliver(packet, self.IPInterfaceAddress, sourceRouter, False )
+        deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
 
-        # who is the slave?
+        # who is the master?
+        if self.RouterID > packetReceived.getRouterID():
+            master = True   # i'm the master
+        else:
+            master = False  # i'm the slave
 
+        # Exchange phase
+
+        ASBR = self.routerclass.getASBR(self.AreaID)
+        ListHeaderstosendASBR = ASBR.getHeaderLSAs()
+
+        if master:
+
+            # Wait for slave response
+            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+            sourceRouter = packetReceived.getSourceRouter()
+            ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
+            LSAHeaders = packetReceived.getListLSA()
+
+            ddseqnumber += 1
+            newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
+                                                0, 2, 0, 1, 1, ddseqnumber, False)
+            for x in ListHeaderstosendASBR:
+                newpack.addLSAHeader(x)
+
+            # Update Header
+            newpack.setPackLength(20 * len(ListHeaderstosendASBR) + 8)
+            newpack.computeChecksum()
+
+            # send packet to source router
+            newpack = newpack.packDDtoSend()
+            deliver(newpack, self.IPInterfaceAddress, sourceRouter, False)
+
+            # Wait for slave response
+            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+
+            sourceRouter = packetReceived.getSourceRouter()
+            ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
+            MbitRecv = packetReceived.getMbit()
+            LSAHeaders = packetReceived.getListLSA()
+
+            Mbit = True
+            while Mbit:
+                # Exchange not ended
+                # create DD to send
+                ddseqnumber += 1
+                packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
+                                                   0, 2, 0, 0, 1, ddseqnumber, True)
+                packet = packet.packDDtoSend()
+
+                # send packet to source router
+                deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
+
+                # Wait for slave response
+                packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+
+                sourceRouter = packetReceived.getSourceRouter()
+                ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
+                Mbit = packetReceived.getMbit()
+
+
+            # End Exchange: move to Loading
+
+
+        else:
+            newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2,
+                                                self.RouterID, self.AreaID, 0, 0, 0,
+                                0, 2, 0, 0, 0, ddseqnumber, False)
+            for x in ListHeaderstosendASBR:
+                newpack.addLSAHeader(x)
+
+            # Update Header
+            newpack.setPackLength(20*len(ListHeaderstosendASBR) + 8)
+            newpack.computeChecksum()
+
+            # send packet to source router
+            newpack = newpack.packDDtoSend()
+            deliver(newpack, self.IPInterfaceAddress, sourceRouter, False)
+
+            # Wait for master response
+            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+
+            sourceRouter = packetReceived.getSourceRouter()
+            ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
+            Mbit = packetReceived.getMbit()
+            LSAHeaders = packetReceived.getListLSA()
+
+            # create DD to send
+            packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2,
+                                               self.RouterID, self.AreaID, 0, 0, 0,
+                                               0, 2, 0, 0, 0, ddseqnumber, True)
+            packet = packet.packDDtoSend()
+
+            # send packet to source router
+            deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
+
+            while Mbit:
+                # Exchange not ended
+
+                # Wait for master response
+                packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+
+                sourceRouter = packetReceived.getSourceRouter()
+                ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
+                Mbit = packetReceived.getMbit()
+                for x in (packetReceived.getListLSA()):
+                    LSAHeaders.append(x)
+
+                # create DD to send
+                packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2,
+                                                   self.RouterID, self.AreaID, 0, 0,0,
+                                                   0, 2, 0, 0, 0, ddseqnumber, True)
+                packet = packet.packDDtoSend()
+
+                # send packet to source router
+                deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
+
+
+            # End Exchange: move to Loading
+
+        # wait for LS-Request
+        thr = threading.Thread(target=self.TakeCareofLSRequest, args=[])
+        thr.daemon = True
+        thr.start()
+
+        packet = LinkStateRequestPacket(self.IPInterfaceAddress, 2, 3,
+                                            self.RouterID, self.AreaID, 0, 0, 0, 0)
+
+        haveToSend = False
+        for x in LSAHeaders:
+             LSAH = unpackLSAHeader(x)
+             if ASBR.HaveThisLSA(LSAH):
+                 continue
+             else:
+                 haveToSend = True
+                 packet.receiveRequest({'LSType': LSAH.getLSType(),
+                                        'LinkStateID':LSAH.getLSID(),
+                                        'AdvertisingRouter': LSAH.getADVRouter()})
+        # send LS-Request
+        if haveToSend:
+            pack = packet.getLSReqToSend()
+            deliver(pack, self.IPInterfaceAddress, sourceRouter, False)
+            self.TakeCareofLSUpdate()
+
+    def TakeCareofLSUpdate(self):
+        # Wait for master response
+        packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 4, False)
+        sourceRouter = packetReceived.getSourceRouter()
+
+        # create LS-ACK
+        pack = LinkStateAcknowledgmentPacket(self.IPInterfaceAddress, 2, 5,
+                                             self.RouterID, self.AreaID, 0, 0, 0, 0)
+        LSAs = packetReceived.getReceivedLSAs()
+
+        for x in LSAs:
+            pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
+            self.routerclass.receiveLSAtoASBR(x, self.AreaID)
+
+        # send  LS-ACK
+        deliver(pack.getLSACKToSend(), self.IPInterfaceAddress, sourceRouter, False)
+
+    def TakeCareofLSRequest(self):
+
+
+        pack = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 3, True)
+
+        if pack != 0:
+
+            LSAs = pack.getLSARequests()
+            ASBR = self.routerclass.getASBR(self.AreaID)
+            sourceRouter = pack.getSourceRouter()
+
+            packetToSend = LinkStateUpdatePacket(self.IPInterfaceAddress, 2, 4, self.RouterID, self.AreaID,
+                                             0, 0, 0, 0, len(LSAs))
+            for x in LSAs:
+                LSA = ASBR.getLSA(x['LSType'], x['LinkStateID'], x['AdvertisingRouter'])
+                if LSA == False:
+                    print "Problem! LSA not found on ASBR!"
+                else:
+                    packetToSend.receiveLSA(LSA)
+
+            # deliver
+            packetToSend = packetToSend.getPackLSUPD()
+            deliver(packetToSend, self.IPInterfaceAddress, sourceRouter, False)
+
+            #wait for LS-ACK or LS- REQ # TODO
 
     def getNeighbord(self, neighID):
         for x in self.Neighbours:
             if x['RouterID']==neighID:
                 return x['Neighbord-object']
 
-
-    ### Events causing interface state changes 9.2
     def InterfaceUp(self):
         self.State = 2  # Waiting
 
@@ -190,10 +392,8 @@ class interface:
             self.BackupDesignatedRouter = self.IPInterfaceAddress
             print "sou BDR"
 
-
     def NeighborChange(self):
         self.DRElection()
-
 
     def RemoveNeighbord(self,routerid):
 
@@ -214,8 +414,6 @@ class interface:
         self.InterfaceOutputCost = 10
         self.RxmtInterval = 30
 
-
-    ##  Designated Router election -RFC OSPVv2 9.4
     def DRElection(self):
 
         ## Step (1)
@@ -240,7 +438,6 @@ class interface:
                              'StateBDR':x['Neighbord-object'].StateBDR(),
                              'neighbordAddress':x['Neighbord-object'].neighbordAddress}
                 listPossible.append(routerToAdd)
-        print "lista possiveis", listPossible
         ## Step (2)
         listPossibleBDR = []
         for x in listPossible:
@@ -282,7 +479,8 @@ class interface:
                         j['StateBDR'] = True
                         j['BDR'] = x['neighbordAddress']
             else:
-                listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'), reverse=True)
+                listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'),
+                                   reverse=True)
                 if len(listofBDR)== 0:
                     statebdr= False
                     bdr = '0.0.0.0'
@@ -645,9 +843,20 @@ class interface:
         if len(self.Neighbours) == 0:
             self.TypeofInterface = 3
         else:
-            self.TypeofInterface =2
+            self.TypeofInterface = 2
 
+    def readLSUpdate(self, packet):
+        LSAs = packet.getReceivedLSAs()
+        ASBR = self.routerclass.getASBR(self.AreaID)
+        sourceRouter = packet.getSourceRouter()
 
+        # create LS-ACK
+        pack = LinkStateAcknowledgmentPacket(self.IPInterfaceAddress, 2, 5,
+                                             self.RouterID, self.AreaID, 0, 0, 0, 0)
 
+        for x in LSAs:
+            pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
+            self.routerclass.receiveLSAtoASBR(x, self.AreaID)
 
-
+        # send  LS-ACK
+        deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)

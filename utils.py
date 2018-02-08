@@ -4,21 +4,22 @@ import fcntl
 import struct
 import binascii
 
+from LSAs.LSAHeader import LSAHeader
+
 OSPF_DD_HEADER = ">BBBB L"
 OSPF_HELLO = "> L HBB L L L"
 OSPF_HDR = "> BBH L L HH L L"
+OSPF_LSA_HDR = "> HBB L L L HH"
 OSPF_HDR_LEN = struct.calcsize(OSPF_HDR)
 OSPF_HELLO_LEN= struct.calcsize(OSPF_HELLO)
 OSPF_DD_HEADER_LEN = struct.calcsize(OSPF_DD_HEADER)
-
+OSPF_LSA_HDR_LEN = struct.calcsize(OSPF_LSA_HDR)
 
 def createchecksum(msg, lenN, type):
-    if type == 1:
-        lenPck=((lenN*4)+ OSPF_HELLO_LEN + OSPF_HDR_LEN)
-    if type == 2:
-        lenPck = ((lenN * 20) +OSPF_HDR_LEN + OSPF_DD_HEADER_LEN)
-    pktOSPF = msg[:lenPck]
-    fields = struct.unpack(">"+str(lenPck/2)+"H", pktOSPF)
+    lenPck = len(msg)
+    if type == 5:
+        lenPck = OSPF_HDR_LEN + lenN
+    fields = struct.unpack("!"+str(lenPck/2)+"H", msg)
     fields = list(fields)
 
     sum = 0
@@ -36,7 +37,6 @@ def createchecksum(msg, lenN, type):
     checksum = compl ^ 0xffff
     return hex(checksum)
 
-
 def IPtoDec(ip):
     parts = ip.split('.')
     return (int(parts[0]) << 24) + (int(parts[1]) << 16) + \
@@ -46,6 +46,12 @@ def IPtoDec(ip):
 def DectoIP(dec):
     return '.'.join([str(dec >> (i << 3) & 0xFF)
           for i in range(4)[::-1]])
+
+
+def unpackLSAHeader(unpacked):
+        pack = struct.unpack(OSPF_LSA_HDR, unpacked)
+        newHeader = LSAHeader(None, pack[0], pack[1], pack[2], DectoIP(pack[3]), DectoIP(pack[4]), hex(pack[5]), pack[6], pack[7])
+        return newHeader
 
 
 def IPtoHex(ip):
@@ -130,15 +136,19 @@ def getInterfaceByIP(ip):
 
 
 def fletcher(fin, k, lg):
-    if k not in (16, 32, 64):
-        raise ValueError("Valid choices of k are 16, 32 and 64")
-    nbytes = k // 16
-    mod = 2 ** (8 * nbytes) - 1
-    s = s2 = 0
-    fin = struct.unpack("!"+str(lg/2)+"H", fin)
-    fin = list(fin)
-    for t in fin:
-        s += t
-        s2 += s
+    CHKSUM_OFFSET = 16
 
-    return hex(s % mod + (mod + 1) * (s2 % mod))
+    packet = fin[:CHKSUM_OFFSET] + '\x00\x00' + fin[CHKSUM_OFFSET + 2:]  # turns chksum to 0
+    c0 = c1 = 0
+    for char in packet[2:]:  # ignores LS Age
+        c0 += ord(char)
+        c1 += c0
+    c0 %= 255
+    c1 %= 255
+    x = ((len(packet) - 16 - 1) * c0 - c1) % 255
+    if x <= 0:
+        x += 255
+    y = 510 - c0 - x
+    if y > 255:
+        y -= 255
+    return chr(x) + chr(y)
