@@ -74,18 +74,14 @@ class LSAHeader:
 
     def getHeaderPack(self, chck):
 
-        #if chck:
-        #    return struct.pack(OSPF_LSA_HDR_CHKS, self.Options, self.LinkStateType,
-        #                       utils.IPtoDec(self.LinkStateID), utils.IPtoDec(self.AdvertisingRouter),
-        #                       self.LinkStateSequenceNumber, 0, self.Length)
-        #else:
-            if type(self.LinkStateChecksum) is not str:
-                ck = struct.pack(">H", self.LinkStateChecksum)
-            else:
-                ck = self.LinkStateChecksum
-            return struct.pack("> HBB L L I", self.LinkStateAge, self.Options, self.LinkStateType,
-                               utils.IPtoDec(self.LinkStateID),utils.IPtoDec(self.AdvertisingRouter),
-                               self.LinkStateSequenceNumber) + ck + struct.pack("!H", self.Length)
+        if type(self.LinkStateChecksum) is not str:
+            ck = struct.pack(">H", self.LinkStateChecksum)
+        else:
+            ck = self.LinkStateChecksum
+
+        return struct.pack("> HBB L L I", self.LinkStateAge, self.Options, self.LinkStateType,
+                           utils.IPtoDec(self.LinkStateID),utils.IPtoDec(self.AdvertisingRouter),
+                           self.LinkStateSequenceNumber) + ck + struct.pack("!H", self.Length)
 
     def calculateLength(self):
         pass        #TODO To overide

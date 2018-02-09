@@ -69,12 +69,12 @@ class ASBR:
         sourceRouter = lsa.getSource()
         if sourceRouter == None:
             # pacote nosso. Envia para todas as interfaces ativas
-            interfaces = self.routerClass.getInterfaceIPExcept()
+            interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
 
         else:
             # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
             sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
-            interfaces = self.routerClass.getInterfaceIPExcept()
+            interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
             sourceInterface = getIPofInterface(sourceInterface)
             interfaces.remove(sourceInterface)
         if len(interfaces) != 0:

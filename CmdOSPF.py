@@ -84,7 +84,8 @@ class cmdOSPF(cmd.Cmd):
 
 
         self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval, self.RouterDeadInterval,
-                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self), inter, self.RouterID, area)
+                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self), inter, self.RouterID,
+                          area)
 
     def multicastReceiver(self):
         MCAST_GROUP = '224.0.0.5'
@@ -133,6 +134,7 @@ class cmdOSPF(cmd.Cmd):
         for x in self.listInterfaces:
             if x['interface-name']==interface_name:
                 x['interface-object']=object_interface
+                x['interface-area']=area
 
         self.createLSA(area, rid)
 
@@ -190,10 +192,10 @@ class cmdOSPF(cmd.Cmd):
     def getASBR(self, areaid):
         return self.ASBR[areaid][0]
 
-    def getInterfaceIPExcept(self):
+    def getInterfaceIPExcept(self, area):
         out = []
         for x in self.listInterfaces:
-            if x['interface-object'] != None:
+            if x['interface-object'] != None and x['interface-area'] == area:
                 out.append(x['interface-object'].getIPIntAddr())
         return out
 

@@ -1,16 +1,17 @@
 from socket import *
 from string import atoi
 from binascii import b2a_hex, b2a_qp
+from utils import getIPAllInterfaces, IPtoDec
 
-from OSPFPackets.DatabaseDescriptionPacket import DatabaseDescriptionPacket
-from OSPFPackets.HelloPacket import HelloPacket
-from LSAs.LSAHeader import LSAHeader
 from OSPFPackets.LinkStateAcknowledgmentPacket import LinkStateAcknowledgmentPacket
+from OSPFPackets.DatabaseDescriptionPacket import DatabaseDescriptionPacket
 from OSPFPackets.LinkStateRequestPacket import LinkStateRequestPacket
 from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
+from OSPFPackets.HelloPacket import HelloPacket
 from LSAs.NetworkLSA import NetworkLSA
 from LSAs.RouterLSA import RouterLSA
-from utils import getIPAllInterfaces, IPtoDec
+from LSAs.LSAHeader import LSAHeader
+
 
 MCAST_GROUP = '224.0.0.5'
 BIND_ADDR = '0.0.0.0'
@@ -49,6 +50,7 @@ class mcast(object):
     def recv(self, s):
         self.s = s
         return self.s.recvfrom(self.bufsize)
+
 
 def readPack(addr, data):
     pos = 0
