@@ -1,7 +1,7 @@
 import struct
 
 import utils
-from LSAHeader import LSAHeader
+from LSAs.LSAHeader import LSAHeader
 
 OSPF_LSA_ROUTER = "> BBH "
 OSPF_LSA_ROUTER_LEN = struct.calcsize(OSPF_LSA_ROUTER)
@@ -46,6 +46,7 @@ class RouterLSA(LSAHeader):
         print "EVB:", self.E, self.V, self.B
         print "Number Links:", self.NumberLinks
         print "Links Data:", self.LinksData
+
     def packRLSA(self):
         #self.printaTudoo()
         first = self.V*4 + self.E*2 + self.B
@@ -59,3 +60,9 @@ class RouterLSA(LSAHeader):
     def getLSAtoSend(self, ):
         pack = self.packRLSA()
         return [self.getHeaderPack(False) + pack, self.getLength()]
+
+    def setBbit(self, value):
+        self.B = value
+
+    def getBbit(self):
+        return self.B

@@ -16,6 +16,7 @@ def deliver(packet, addr_int, destination, multicast):
             s.settimeout(0.2)
 
         except socket.error as msg:
+            print "Erro no socket!"
             sys.exit()
             return 'Socket not be created. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 

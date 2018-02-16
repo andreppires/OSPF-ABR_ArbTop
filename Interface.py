@@ -122,7 +122,7 @@ class interface:
     def createNLSA(self):
         newNLSA = NetworkLSA(None, 0,2,2,self.IPInterfaceAddress,self.RouterID, 0, 0, 0,
                              self.IPInterfaceMask, self.getNeighbords())
-        self.routerclass.receiveLSAtoASBR(newNLSA, self.AreaID)
+        self.routerclass.receiveLSAtoLSDB(newNLSA, self.AreaID)
         self.LSATimer = 60*30
 
     def packetReceived(self, packet):
@@ -184,8 +184,8 @@ class interface:
 
         # Exchange phase
 
-        ASBR = self.routerclass.getASBR(self.AreaID)
-        ListHeaderstosendASBR = ASBR.getHeaderLSAs()
+        LSDB = self.routerclass.getLSDB(self.AreaID)
+        ListHeaderstosendLSDB = LSDB.getHeaderLSAs()
 
         if master:
 
@@ -198,11 +198,11 @@ class interface:
             ddseqnumber += 1
             newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
                                                 0, 2, 0, 1, 1, ddseqnumber, False)
-            for x in ListHeaderstosendASBR:
+            for x in ListHeaderstosendLSDB:
                 newpack.addLSAHeader(x)
 
             # Update Header
-            newpack.setPackLength(20 * len(ListHeaderstosendASBR) + 8)
+            newpack.setPackLength(20 * len(ListHeaderstosendLSDB) + 8)
             newpack.computeChecksum()
 
             # send packet to source router
@@ -244,11 +244,11 @@ class interface:
             newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2,
                                                 self.RouterID, self.AreaID, 0, 0, 0,
                                 0, 2, 0, 0, 0, ddseqnumber, False)
-            for x in ListHeaderstosendASBR:
+            for x in ListHeaderstosendLSDB:
                 newpack.addLSAHeader(x)
 
             # Update Header
-            newpack.setPackLength(20*len(ListHeaderstosendASBR) + 8)
+            newpack.setPackLength(20*len(ListHeaderstosendLSDB) + 8)
             newpack.computeChecksum()
 
             # send packet to source router
@@ -307,7 +307,7 @@ class interface:
         haveToSend = False
         for x in LSAHeaders:
              LSAH = unpackLSAHeader(x)
-             if ASBR.HaveThisLSA(LSAH):
+             if LSDB.HaveThisLSA(LSAH):
                  continue
              else:
                  haveToSend = True
@@ -332,7 +332,7 @@ class interface:
 
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
-            self.routerclass.receiveLSAtoASBR(x, self.AreaID)
+            self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), self.IPInterfaceAddress, sourceRouter, False)
@@ -345,15 +345,15 @@ class interface:
         if pack != 0:
 
             LSAs = pack.getLSARequests()
-            ASBR = self.routerclass.getASBR(self.AreaID)
+            LSDB = self.routerclass.getLSDB(self.AreaID)
             sourceRouter = pack.getSourceRouter()
 
             packetToSend = LinkStateUpdatePacket(self.IPInterfaceAddress, 2, 4, self.RouterID, self.AreaID,
                                              0, 0, 0, 0, len(LSAs))
             for x in LSAs:
-                LSA = ASBR.getLSA(x['LSType'], x['LinkStateID'], x['AdvertisingRouter'])
+                LSA = LSDB.getLSA(x['LSType'], x['LinkStateID'], x['AdvertisingRouter'])
                 if LSA == False:
-                    print "Problem! LSA not found on ASBR!"
+                    print "Problem! LSA not found on LSDB!"
                 else:
                     packetToSend.receiveLSA(LSA)
 
@@ -847,7 +847,7 @@ class interface:
 
     def readLSUpdate(self, packet):
         LSAs = packet.getReceivedLSAs()
-        ASBR = self.routerclass.getASBR(self.AreaID)
+        LSDB = self.routerclass.getLSDB(self.AreaID)
         sourceRouter = packet.getSourceRouter()
 
         # create LS-ACK
@@ -856,7 +856,7 @@ class interface:
 
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
-            self.routerclass.receiveLSAtoASBR(x, self.AreaID)
+            self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)

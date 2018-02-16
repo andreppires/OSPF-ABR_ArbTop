@@ -36,8 +36,15 @@ class OSPFPacket():
         self.packet_length = lg + OSPF_HDR_LEN
 
     def getHeaderPack(self):
-        return struct.pack(OSPF_HDR, self.version, self.type, self.packet_length, IPtoDec(self.RouterID), IPtoDec(self.AreaID),
-                    self.Checksum, self.AuType, self.Authentication, self.Authentication2)
+        if self.AreaID != 'ABR':
+            return struct.pack(OSPF_HDR, self.version, self.type, self.packet_length, IPtoDec(self.RouterID),
+                               IPtoDec(self.AreaID), self.Checksum, self.AuType,
+                               self.Authentication, self.Authentication2)
+        else:
+            return struct.pack(OSPF_HDR, self.version, self.type, self.packet_length, IPtoDec(self.RouterID),
+                               IPtoDec('1.1.1.1'), self.Checksum, self.AuType,
+                               self.Authentication, self.Authentication2)
+
 
     def printPacket(self):
         print "Sou um pacote OSPF do tipo= ", self.type

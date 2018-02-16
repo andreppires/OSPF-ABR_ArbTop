@@ -6,7 +6,7 @@ from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
 from utils import getIPofInterface
 
 
-class ASBR:
+class LSDB:
 
     def __init__(self, area, routerclass):
         self.LSAs = []
@@ -60,29 +60,38 @@ class ASBR:
         self.FlushLSA(lsa)
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
-        # TODO need to flush that LSA
 
         pack = LinkStateUpdatePacket(None, 2, 4, self.routerClass.getRouterID(), self.Area,
                                      0, 0, 0, 0 ,1)
         pack.receiveLSA(lsa)
         packed = pack.getPackLSUPD()
         sourceRouter = lsa.getSource()
-        if sourceRouter == None:
-            # pacote nosso. Envia para todas as interfaces ativas
-            interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
+        if self.Area == 'ABR':
+            interfaces = self.routerClass.getAllInterface()
+        else:
+            if sourceRouter == None:
+                # pacote nosso. Envia para todas as interfaces ativas
+                interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
+
+            else:
+                # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
+                sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
+                interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
+                sourceInterface = getIPofInterface(sourceInterface)
+                interfaces.remove(sourceInterface)
+        if len(interfaces) != 0: # TODO need to fix this pedreiro style
+            if self.Area == 'ABR':
+                print "Vou enviar um pacote para as interfaces:", interfaces
+                deliver(packed, interfaces, None, True)
+                print "PACOTE ENVIADO!"
+            else:
+                deliver(packed, interfaces, None, True)
+
 
         else:
-            # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
-            sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
-            interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
-            sourceInterface = getIPofInterface(sourceInterface)
-            interfaces.remove(sourceInterface)
-        if len(interfaces) != 0:
-            deliver(packed, interfaces, None, True)
-        else:
-            print "lista de outras interfaces vazia"
+            print "lista de outras interfaces vazia", self.Area
 
-    def printASBR(self):
+    def printLSDB(self):
         for x in self.LSAs:
             x.printLSA()
 
@@ -111,3 +120,13 @@ class ASBR:
                 return x
 
         return False        # dont have that LSA
+
+    def getNeighbordABR(self, rid):
+        out = []
+        for x in self.LSAs:
+            if x.getADVRouter != rid:
+                if x.getLSType == 1:
+                    if x.getBbit() == True:
+                        out.append(x.getADVRouter) # TODO get cost to destination
+
+        return out

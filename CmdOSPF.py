@@ -5,9 +5,10 @@ from socket import *
 
 import mcast
 import utils
-from ASBR import ASBR
+from LSDB import LSDB
 from Interface import interface
 from LSAs.RouterLSA import RouterLSA
+from LSAs.ABRLSA import ABRLSA
 
 OSPF_TYPE_IGP = '59'
 HELLO_PACKET = '01'
@@ -31,7 +32,8 @@ class cmdOSPF(cmd.Cmd):
 
         self.listInterfaces = []
         self.StartInterfacesList()
-        self.ASBR={}
+        self.LSDB = {}
+        self.OpaqueID = 0
 
         self.thread = threading.Thread(target=self.multicastReceiver, args=())
         self.thread.daemon = True
@@ -67,8 +69,8 @@ class cmdOSPF(cmd.Cmd):
         print "Bye!"
         return True
 
-    def do_asbr(self, line):
-        self.ASBR[line][0].printASBR()
+    def do_lsdb(self, line):
+        self.LSDB[line][0].printLSDB()
 
     def do_list(self,line):
         """list interfaces"""
@@ -84,8 +86,8 @@ class cmdOSPF(cmd.Cmd):
 
 
         self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval, self.RouterDeadInterval,
-                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self), inter, self.RouterID,
-                          area)
+                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self), inter,
+                          self.RouterID, area)
 
     def multicastReceiver(self):
         MCAST_GROUP = '224.0.0.5'
@@ -116,11 +118,9 @@ class cmdOSPF(cmd.Cmd):
                 data, addr = s.recvfrom(bufferSize)
                 packet = mcast.readPack(addr, data)
                 if packet.getType() != type:
-                    print "not a packet of type: ", type
                     continue
                 break
         except Exception:
-            print "time out!"
             return 0
 
         return packet
@@ -155,23 +155,55 @@ class cmdOSPF(cmd.Cmd):
                     else:
                         "Error creating LSA. Link Type not supported"
         rlsa = RouterLSA(None, 0,2,1,rid, rid, 0, 1, 0, 0, 0, 0, len(linkdata), linkdata)
-        if area in self.ASBR:
-            self.ASBR[area][0].receiveLSA(rlsa)
+        if area in self.LSDB:
+            if len(self.LSDB)>1:
+                rlsa.setBbit(True)
+                self.createLSDBforABROverlay()
+            self.LSDB[area][0].receiveLSA(rlsa)
         else:
-            x = [ASBR(area, self), 0]
-            self.ASBR[area] = x
-            self.ASBR[area][0].receiveLSA(rlsa)
+            x = [LSDB(area, self), 0]
+            self.LSDB[area] = x
+            if len(self.LSDB)>1:
+                rlsa.setBbit(True)
+                self.createLSDBforABROverlay()
+
+            self.LSDB[area][0].receiveLSA(rlsa)
+
+    def createLSDBforABROverlay(self):
+        if 'ABR' not in self.LSDB:
+            x = [LSDB('ABR', self), 0]
+            self.LSDB['ABR'] = x
+            # create ABR LSA
+            opaqueID = self.getOpaqueID()
+            lsa = ABRLSA(None, 0, 2, opaqueID, self.RouterID,0, 0, 0)
+            # get ABR Neigbords and metric
+            ABRNeighbords=[]
+            for x in self.LSDB:
+                if x == 'ABR':
+                    continue
+                N = self.LSDB[x][0].getNeighbordABR(self.RouterID)
+                if len(N)>0:
+                    ABRNeighbords.append(N)
+
+            # add them
+            for x in ABRNeighbords:
+                lsa.addLinkDataEntry(x)
+            # add LSA to LSDB
+            self.LSDB['ABR'][0].receiveLSA(lsa)
+
+    def getOpaqueID(self):
+        self.OpaqueID += 1
+        return self.OpaqueID
 
     def incrementLSATimer(self):
         while True:
-            for x in self.ASBR:
-                if self.ASBR[x][1] == 1800:
-                    self.createLSA(self.ASBR[x][0].getArea(), self.RouterID)
-                    self.ASBR[x][1] = 0
+            for x in self.LSDB:
+                if self.LSDB[x][1] == 1800:
+                    self.createLSA(self.LSDB[x][0].getArea(), self.RouterID)
+                    self.LSDB[x][1] = 0
                 else:
-                    self.ASBR[x][1] = self.ASBR[x][1]+1
+                    self.LSDB[x][1] = self.LSDB[x][1]+1
             sleep(1)
-
 
     def WhatInterfaceReceivedthePacket(self, sourceIP):
         for x in range(len(self.listInterfaces)):
@@ -186,16 +218,23 @@ class cmdOSPF(cmd.Cmd):
 
         return 0 #error
 
-    def receiveLSAtoASBR(self, lsa, area):
-        self.ASBR[area][0].receiveLSA(lsa)
+    def receiveLSAtoLSDB(self, lsa, area):
+        self.LSDB[area][0].receiveLSA(lsa)
 
-    def getASBR(self, areaid):
-        return self.ASBR[areaid][0]
+    def getLSDB(self, areaid):
+        return self.LSDB[areaid][0]
 
     def getInterfaceIPExcept(self, area):
         out = []
         for x in self.listInterfaces:
             if x['interface-object'] != None and x['interface-area'] == area:
+                out.append(x['interface-object'].getIPIntAddr())
+        return out
+
+    def getAllInterface(self):
+        out = []
+        for x in self.listInterfaces:
+            if x['interface-object'] != None:
                 out.append(x['interface-object'].getIPIntAddr())
         return out
 

@@ -1,12 +1,15 @@
 import struct
 
+import utils
+
 OSPF_LSA_OPAQUE_HDR = "> HBB BBH L L HH"
 OSPF_LSA_OPAQUE_HDR_CHKS = "> BB BBH L L HH"
 OSPF_LSA_OPAQUE_HDR_LEN = struct.calcsize(OSPF_LSA_OPAQUE_HDR)
 OSPF_LSA_OPAQUE_HDR_CHKS_LEN = struct.calcsize(OSPF_LSA_OPAQUE_HDR_CHKS)
 
-class LSAHeader:
+class HeaderOpaqueLSA:
     def __init__(self, sourceRouter, lsage, opt, opaquetype, opaqueID, advert, lsNumber, ck, lg):
+
         self.sourceRouter = sourceRouter
         self.LinkStateAge = lsage
         self.Options =  opt
@@ -26,6 +29,15 @@ class LSAHeader:
 
     def getSource(self):
         return self.sourceRouter
+
+    def getOpaqueID(self):
+        return self.OpaqueID
+
+    def getLSType(self):
+        return self.LinkStateType
+
+    def getLSID(self):
+        return self.getOpaqueID()
 
     def getAge(self):
         return self.LinkStateAge
@@ -54,24 +66,33 @@ class LSAHeader:
     def printLSA(self):
         print self.LinkStateAge, self.LinkStateType, self.LinkStateID, self.LinkStateSequenceNumber
 
-    def getHeaderPack(self, chck):
-        pass
+    def getHeaderPack(self):
+
+        if type(self.LinkStateChecksum) is not str:
+            ck = struct.pack(">H", self.LinkStateChecksum)
+        else:
+            ck = self.LinkStateChecksum
+
+        return struct.pack("> HBB BBH L L", self.LinkStateAge, self.Options, self.LinkStateType,
+                           self.OpaqueType, 0, self.OpaqueID, utils.IPtoDec(self.AdvertisingRouter),
+                           self.LinkStateSequenceNumber) + ck + struct.pack("!H", self.Length)
+
 
     def getLength(self):
         return self.Length
 
-    def getLengthHeader(self, checksum): # TODO
+    def getLengthHeader(self, checksum):
         if checksum:
             return OSPF_LSA_OPAQUE_HDR_CHKS_LEN
         else:
             return OSPF_LSA_OPAQUE_HDR
 
-    def setLength(self, lgt, chks): # TODO
+    def setLength(self, lgt, chks):
         if chks:
             self.Length = lgt + 2
         else:
             self.Length = lgt
 
     def setChecksum(self, ck):
-        self.LinkStateChecksum =ck
+        self.LinkStateChecksum = ck
 
