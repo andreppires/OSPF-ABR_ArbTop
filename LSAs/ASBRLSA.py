@@ -1,6 +1,6 @@
 import struct
 
-from LSAs import HeaderOpaqueLSA
+from LSAs.HeaderOpaqueLSA import HeaderOpaqueLSA
 
 OSPF_LSA_ASBR = "> L L"
 OSPF_LSA_ASBR_LEN = struct.calcsize(OSPF_LSA_ASBR)

@@ -44,7 +44,12 @@ class NetworkLSA(LSAHeader):
             pack = pack + struct.pack(OSPF_LSA_NETWORK, utils.IPtoDec(x))
         return pack
 
-    def getLSAtoSend(self,):
+    def getLSAtoSend(self):
         pack = self.packNLSA()
         return self.getHeaderPack(False) + pack, self.getLength()
+
+    def getPrefixAndCost(self):
+        network = utils.getNetworkfromIPandMask(self.LinkStateID, self.NetworkMask)
+        return [10, self.NetworkMask, network] # TODO need to calculate the shortest path cost
+
 

@@ -5,6 +5,8 @@ from socket import *
 
 import mcast
 import utils
+from LSAs.ASBRLSA import ASBRLSA
+from LSAs.PrefixLSA import PrefixLSA
 from LSDB import LSDB
 from Interface import interface
 from LSAs.RouterLSA import RouterLSA
@@ -158,38 +160,84 @@ class cmdOSPF(cmd.Cmd):
         if area in self.LSDB:
             if len(self.LSDB)>1:
                 rlsa.setBbit(True)
-                self.createLSDBforABROverlay()
+                self.threadforAbrLsdbStart()
             self.LSDB[area][0].receiveLSA(rlsa)
         else:
             x = [LSDB(area, self), 0]
             self.LSDB[area] = x
             if len(self.LSDB)>1:
                 rlsa.setBbit(True)
-                self.createLSDBforABROverlay()
+                self.threadforAbrLsdbStart()
 
             self.LSDB[area][0].receiveLSA(rlsa)
+
+    def threadforAbrLsdbStart(self):
+        t = threading.Thread(target=self.createLSDBforABROverlay, args=())
+        t.daemon = True
+        t.start()
 
     def createLSDBforABROverlay(self):
         if 'ABR' not in self.LSDB:
             x = [LSDB('ABR', self), 0]
             self.LSDB['ABR'] = x
-            # create ABR LSA
-            opaqueID = self.getOpaqueID()
-            lsa = ABRLSA(None, 0, 2, opaqueID, self.RouterID,0, 0, 0)
-            # get ABR Neigbords and metric
-            ABRNeighbords=[]
-            for x in self.LSDB:
-                if x == 'ABR':
-                    continue
-                N = self.LSDB[x][0].getNeighbordABR(self.RouterID)
-                if len(N)>0:
-                    ABRNeighbords.append(N)
+            sleep(60)
+            self.createASBRLSAs()
+            self.createPrefixLSAs()
+            self.createABRLSA()
 
-            # add them
-            for x in ABRNeighbords:
-                lsa.addLinkDataEntry(x)
-            # add LSA to LSDB
-            self.LSDB['ABR'][0].receiveLSA(lsa)
+    def createABRLSA(self):
+
+        # create ABR LSA
+        opaqueID = self.getOpaqueID()
+        lsa = ABRLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0)
+
+        # get ABR Neigbords and metric
+        ABRNeighbords = []
+        for x in self.LSDB:
+            if x == 'ABR':
+                continue
+            N = self.LSDB[x][0].getNeighbordABR(self.RouterID)
+            if len(N) > 0:
+                ABRNeighbords.append(N)
+
+        # add them
+        for x in ABRNeighbords:
+            lsa.addLinkDataEntry(x)
+        # add LSA to LSDB
+        self.LSDB['ABR'][0].receiveLSA(lsa)
+
+    def createPrefixLSAs(self):
+        # Get Network-LSAs
+        for x in self.LSDB:
+            if x == 'ABR': # special LSDB
+                continue
+            for y in self.LSDB[x][0].getNetworkLSAs():
+                # create PrefixLSA for every NetworkLSA
+                opaqueID = self.getOpaqueID()
+                data = y.getPrefixAndCost()
+                lsa = PrefixLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0,
+                                data[0], data[1], data[2])
+                self.LSDB['ABR'][0].receiveLSA(lsa)
+
+    def createASBRLSAs(self):
+        # Get ASBRs Routers
+        for x in self.LSDB:
+            if x == 'ABR': # special LSDB
+                continue
+            for y in self.LSDB[x][0].getAsbrRouterLSAS(self.RouterID):
+                # create PrefixLSA for every NetworkLSA
+                opaqueID = self.getOpaqueID()
+                data = y.getPrefixAndCost()
+                lsa = ASBRLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0, data[0], data[1])
+                self.LSDB['ABR'][0].receiveLSA(lsa)
+
+    def getActiveAreas(self):
+        out =[]
+        for x in self.LSDB:
+            if x == 'ABR': # special LSDB
+                continue
+            out.append(x)
+        return out
 
     def getOpaqueID(self):
         self.OpaqueID += 1

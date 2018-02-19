@@ -67,29 +67,32 @@ class LSDB:
         packed = pack.getPackLSUPD()
         sourceRouter = lsa.getSource()
         if self.Area == 'ABR':
-            interfaces = self.routerClass.getAllInterface()
+            activeAreas = self.routerClass.getActiveAreas()
+            for x in activeAreas:
+                if sourceRouter == None:
+                    # pacote nosso. Envia para todas as interfaces ativas
+                    interfaces = self.routerClass.getInterfaceIPExcept(x)
+                else:
+                    # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
+                    sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
+                    interfaces = self.routerClass.getInterfaceIPExcept(x)
+                    sourceInterface = getIPofInterface(sourceInterface)
+                    interfaces.remove(sourceInterface)
+                if len(interfaces) != 0:
+                    deliver(packed, interfaces, None, True)
+
         else:
             if sourceRouter == None:
                 # pacote nosso. Envia para todas as interfaces ativas
                 interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
-
             else:
                 # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
                 sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
                 interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
                 sourceInterface = getIPofInterface(sourceInterface)
                 interfaces.remove(sourceInterface)
-        if len(interfaces) != 0: # TODO need to fix this pedreiro style
-            if self.Area == 'ABR':
-                print "Vou enviar um pacote para as interfaces:", interfaces
+            if len(interfaces) != 0:
                 deliver(packed, interfaces, None, True)
-                print "PACOTE ENVIADO!"
-            else:
-                deliver(packed, interfaces, None, True)
-
-
-        else:
-            print "lista de outras interfaces vazia", self.Area
 
     def printLSDB(self):
         for x in self.LSAs:
@@ -100,7 +103,6 @@ class LSDB:
         lg=0
         for x in self.LSAs:
             list.append(x.getHeaderPack(False))
-
         return list
 
     def HaveThisLSA(self, lsa):
@@ -111,22 +113,33 @@ class LSDB:
                     return True     # same LSA but more recent
                 else:
                     return False    # same LSA. Not most recent
-
         return False        # dont have that LSA
 
     def getLSA(self, type, id, advR):
         for x in self.LSAs:
             if type == x.getLSType() and id == x.getLSID() and advR == x.getADVRouter():
                 return x
-
         return False        # dont have that LSA
 
     def getNeighbordABR(self, rid):
         out = []
         for x in self.LSAs:
-            if x.getADVRouter != rid:
-                if x.getLSType == 1:
-                    if x.getBbit() == True:
-                        out.append(x.getADVRouter) # TODO get cost to destination
-
+            if x.getLSType == 1 and x.getBbit() is True and x.getADVRouter() != rid:
+                out.append(10, x.getADVRouter())    # TODO get cost to destination
         return out
+
+    def getNetworkLSAs(self):
+        out = []
+        for x in self.LSAs:
+
+            if x.getLSType() == 2: #NetworkLSA
+                out.append(x)
+        return out
+
+    def getAsbrRouterLSAS(self, rid):
+        out = []
+        for x in self.LSAs:
+            if x.getLSType() == 1 and x.getEbit() is True  and x.getBbit() is True and x.getADVRouter() != rid:
+                out.append(10, x.getADVRouter())  # TODO get cost to destination
+        return out
+

@@ -66,3 +66,9 @@ class RouterLSA(LSAHeader):
 
     def getBbit(self):
         return self.B
+
+    def getEbit(self):
+        return self.E
+
+    def getPrefixandCost(self):
+        return [10, self.AdvertisingRouter] # TODO get the right cost

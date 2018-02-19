@@ -247,7 +247,6 @@ def readPack(addr, data):
                     Nlinks = int(str(hex(td(data[newpos + 22]))) + str(hex(td(data[newpos + 23])))[2:], 16)
                     position = newpos +24
                     ListLinks = []
-                    print "NLinks:", Nlinks
                     for x in range(0, Nlinks):
                         LinkID = (inet_ntoa(data[position:position +4]))
                         LinkData = (inet_ntoa(data[position + 4:position +8]))
