@@ -33,6 +33,9 @@ class HeaderOpaqueLSA:
     def getOpaqueID(self):
         return self.OpaqueID
 
+    def setOpaqueID(self, op):
+        self.OpaqueID = op
+
     def getLSType(self):
         return self.LinkStateType
 
@@ -56,6 +59,9 @@ class HeaderOpaqueLSA:
 
     def getChecksum(self):
         return self.LinkStateChecksum
+
+    def getOpaqueType(self):
+        return self.OpaqueType
 
     def setNextSN(self, sn):
         if sn == self.MaxSeqNumber:

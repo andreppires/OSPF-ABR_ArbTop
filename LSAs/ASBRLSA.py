@@ -12,3 +12,6 @@ class ASBRLSA(HeaderOpaqueLSA):
 
         self.Metric = metric
         self.DestinationRouterID = destiRouterID
+
+    def getDestinationRID(self):
+        return self.DestinationRouterID

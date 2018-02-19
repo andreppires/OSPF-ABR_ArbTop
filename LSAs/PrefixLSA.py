@@ -15,6 +15,12 @@ class PrefixLSA(HeaderOpaqueLSA):
         self.SubnetMask = subnetMask
         self.SubnetAddress = subnetAddr
 
+    def getSubnetMask(self):
+        return self.SubnetMask
+
+    def getSubnetAddress(self):
+        return self.SubnetAddress
+
     def printLSA(self):
         print "Prefix LSA:"
         print "Link ID          ADV Router      Age     Seq#        Link count"

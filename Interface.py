@@ -10,6 +10,7 @@ from utils import unpackLSAHeader
 from OSPFPackets.LinkStateRequestPacket import LinkStateRequestPacket
 from Neighbord import neighbord
 from LSAs.NetworkLSA import NetworkLSA
+from LSAs.PrefixLSA import PrefixLSA
 
 
 class interface:
@@ -111,7 +112,6 @@ class interface:
                 self.resetHelloTimer()
             if self.LSATimer == 0 and self.havetoNLSA():
                 self.createNLSA()
-
 
     def havetoNLSA(self):
         if self.DesignatedRouter == self.IPInterfaceAddress and len(self.Neighbours)>0:
@@ -847,7 +847,6 @@ class interface:
 
     def readLSUpdate(self, packet):
         LSAs = packet.getReceivedLSAs()
-        LSDB = self.routerclass.getLSDB(self.AreaID)
         sourceRouter = packet.getSourceRouter()
 
         # create LS-ACK
@@ -857,6 +856,12 @@ class interface:
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
             self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
+            if x.getLSType() == 2:    # Network-LSA
+                data = x.getPrefixAndCost()
+                prefixlsa = PrefixLSA(None, 0, 2, self.routerclass.getOpaqueID(), self.RouterID, 0, 0, 0,
+                                data[0], data[1], data[2])
+                self.routerclass.receiveLSAtoLSDB(prefixlsa, 'ABR')
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)
+

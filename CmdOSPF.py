@@ -45,7 +45,6 @@ class cmdOSPF(cmd.Cmd):
         self.thread.daemon = True
         self.thread.start()
 
-
         return cmd.Cmd.cmdloop(self)
 
     def do_hello(self, line):
@@ -104,6 +103,8 @@ class cmdOSPF(cmd.Cmd):
             interface_obj = self.getInterfaceByName(interface_name)
             if interface_name == 0 or interface_obj==None or packet==0:
                 continue
+            if packet.getType() == 11:
+                    self.receiveLSAtoLSDB(packet.getReceivedLSAs()[0], 'ABR')
             interface_obj.packetReceived(packet)
             
     def unicastReceiver(self, interfaceaddr, type, timeout):
@@ -183,7 +184,7 @@ class cmdOSPF(cmd.Cmd):
             sleep(60)
             self.createASBRLSAs()
             self.createPrefixLSAs()
-            self.createABRLSA()
+        self.createABRLSA()
 
     def createABRLSA(self):
 

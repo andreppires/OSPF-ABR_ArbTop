@@ -38,6 +38,9 @@ class LSAHeader:
         print "CHECKSUM ", self.LinkStateChecksum
         print "LENGHT ", self.Length
 
+    def getOpaqueType(self):
+        return False
+
     def getAge(self):
         return self.LinkStateAge
 

@@ -72,7 +72,6 @@ def getNetworkfromIPandMask(ip, mask):
     ipaddr = int(''.join(['%02x' % int(x) for x in ip.split('.')]), 16)
     netmask = IPtoDec(mask)
     network = DectoIP(ipaddr & netmask)
-    print "#######################################", network
     return network
 
 def getNetworkIP(ipadd, netmask):
