@@ -23,9 +23,9 @@ class PrefixLSA(HeaderOpaqueLSA):
 
     def printLSA(self):
         print "Prefix LSA:"
-        print "Link ID          ADV Router      Age     Seq#        Link count"
+        print "Link ID          ADV Router      Age     Seq#"
         print self.getLSID(), "      ", self.getADVRouter(), "      ", self.getAge(), "      ",\
-            self.getSeqNumber(), "      ", len(self.attachedRouter)
+            self.getSeqNumber()
 
     def calculateLength(self, ck):
         hdlen = self.getLengthHeader(ck)

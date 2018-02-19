@@ -860,7 +860,7 @@ class interface:
                 data = x.getPrefixAndCost()
                 prefixlsa = PrefixLSA(None, 0, 2, self.routerclass.getOpaqueID(), self.RouterID, 0, 0, 0,
                                 data[0], data[1], data[2])
-                self.routerclass.receiveLSAtoLSDB(prefixlsa, 'ABR')
+                self.routerclass.receivenewLSA(prefixlsa)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)

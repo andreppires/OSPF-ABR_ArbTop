@@ -359,6 +359,7 @@ def readPack(addr, data):
     else:
         if DEBUG:
             print("Error, not an OSPF packet")
+
     return 0
 
 

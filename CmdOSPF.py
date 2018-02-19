@@ -289,3 +289,7 @@ class cmdOSPF(cmd.Cmd):
 
     def getRouterID(self):
         return self.RouterID
+
+    def receivenewLSA(self, lsa):
+        if 'ABR' in self.LSDB:
+            self.receiveLSAtoLSDB(lsa, 'ABR')
