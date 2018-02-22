@@ -59,3 +59,10 @@ class ABRLSA(HeaderOpaqueLSA):
     def getLSAtoSend(self, ):
         pack = self.packABRLSA()
         return [self.getHeaderPack() + pack, self.getLength()]
+
+    def getDicOfNeighbors(self):
+        out ={}
+        for x in self.LinkData:
+            out[x[0]] = x[1]
+        return out
+

@@ -1,6 +1,4 @@
 import threading
-from operator import itemgetter
-from time import sleep
 
 from Deliver import deliver
 from LSDB import LSDB
@@ -102,15 +100,10 @@ class ABRLSDB(LSDB):
     def constructgraph(self):
         G = {}
         for x in self.LSAs:
-            if x.getLSType() == 1:    # Router-LSA
+            if x.getLSType() == 11 and x.getOpaqueType== 20:    # ABR-LSA
                 RID = x.getADVRouter()
                 Neigh = x.getDicOfNeighbors()
                 G[RID] = Neigh
-            else:
-                if x.getLSType() == 2:  #Network-LSA
-                    RID = x.getLSID()
-                    Neigh = x.getDicOfNeighbors()
-                    G[RID] = Neigh
         self.graph = G
 
 

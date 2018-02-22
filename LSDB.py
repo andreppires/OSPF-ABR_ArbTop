@@ -36,7 +36,7 @@ class LSDB:
                     x.countAge()
                 sleep(1)
 
-    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter,):
+    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
         for x in self.LSAs:
             if x.getLSType() == LSType and x.getLSID() == LSID  and x.getADVRouter() == LSAdvRouter:
                 return [True, x]
@@ -53,7 +53,7 @@ class LSDB:
         return False
 
     def receiveLSA(self, lsa):
-        if self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter()):
+        if self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), None, None):
             x = self.removeLSA(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), False)
             lsa.setNextSN(x.getSeqNumber())
         lsa.calculateChecksum()
@@ -79,7 +79,8 @@ class LSDB:
                         break
                     bestpathsandcost.append(result[x])
                 print "best path:", bestpathsandcost
-                self.routerClass.addOSPFToRoutingTable(bestpathsandcost, lsa.getLSID(), lsa.getNetworkMask())
+                self.routerClass.addOSPFToRoutingTable(bestpathsandcost,
+                                                       lsa.getLSID(), lsa.getNetworkMask())
 
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
