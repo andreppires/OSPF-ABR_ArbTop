@@ -5,6 +5,7 @@ from socket import *
 
 import mcast
 import utils
+from LSAs.ABRLSDB import ABRLSDB
 from LSAs.ASBRLSA import ASBRLSA
 from LSAs.PrefixLSA import PrefixLSA
 from LSDB import LSDB
@@ -133,38 +134,55 @@ class cmdOSPF(cmd.Cmd):
             self.listInterfaces.append({'interface-name':x, 'ip':utils.getIPofInterface(x),
                                         'netmask':utils.getNetMaskofInterface(x), 'interface-object': None})
 
+    def addOSPFToRoutingTable(self, listpath, ipNetworkDR, netmask):    #TODO not finished
+        ipNetwork = utils.getNetworkfromIPandMask(ipNetworkDR, netmask)
+        print "aqui estou eu", len(listpath)
+        for x in range(0, len(listpath)):
+            print "dentro do for"
+            destinationEntry = [ipNetwork, listpath[x]['path'], listpath[x]['cost']]
+            print destinationEntry
+            print "HEY!"
+
     def setInterface(self, object_interface , interface_name, rid, area):
         for x in self.listInterfaces:
             if x['interface-name']==interface_name:
                 x['interface-object']=object_interface
                 x['interface-area']=area
 
-        self.createLSA(area, rid)
+        self.createLSA(area, rid, False)
 
-    def createLSA(self, area, rid):
+    def createLSA(self, area, rid, sn):
         # create/Update RouterLSA
         linkdata=[]
         for x in self.listInterfaces:
             if x['interface-object'] != None and x['interface-object'].getArea() == area:
                 typeLink = x['interface-object'].getTypeLink()
-                if typeLink ==2: #transit network
+                if typeLink == 2:   # transit network
                     linkdata.append([x['interface-object'].getDR(), x['interface-object'].getIPIntAddr(), typeLink,
                                      0, x['interface-object'].getMetric()])
                 else:
-                    if typeLink == 3: #stub
-                        networkIP = utils.getNetworkIP(x['interface-object'].getIPIntAddr(), x['interface-object'].getIPInterfaceMask() )
+                    if typeLink == 3:   # stub
+                        networkIP = utils.getNetworkIP(x['interface-object'].getIPIntAddr(), x['interface-object'].
+                                                       getIPInterfaceMask())
                         linkdata.append([networkIP, x['interface-object'].getIPInterfaceMask(),
                                          typeLink, 0, x['interface-object'].getMetric()])
                     else:
                         "Error creating LSA. Link Type not supported"
-        rlsa = RouterLSA(None, 0,2,1,rid, rid, 0, 1, 0, 0, 0, 0, len(linkdata), linkdata)
+        if sn == False:
+            rlsa = RouterLSA(None, 0,2,1,rid, rid, 0, 1, 0, 0, 0, 0, len(linkdata), linkdata)
+        else:
+            rlsa = RouterLSA(None, 0, 2, 1, rid, rid, sn, 1, 0, 0, 0, 0, len(linkdata), linkdata)
+
         if area in self.LSDB:
             if len(self.LSDB)>1:
                 rlsa.setBbit(True)
                 self.threadforAbrLsdbStart()
             self.LSDB[area][0].receiveLSA(rlsa)
         else:
-            x = [LSDB(area, self), 0]
+            if area != 'ABR':
+                x = [LSDB(area, self), 0]
+            else:
+                x = [ABRLSDB(area, self), 0]
             self.LSDB[area] = x
             if len(self.LSDB)>1:
                 rlsa.setBbit(True)
@@ -248,7 +266,7 @@ class cmdOSPF(cmd.Cmd):
         while True:
             for x in self.LSDB:
                 if self.LSDB[x][1] == 1800:
-                    self.createLSA(self.LSDB[x][0].getArea(), self.RouterID)
+                    self.createLSA(self.LSDB[x][0].getArea(), self.RouterID, False)
                     self.LSDB[x][1] = 0
                 else:
                     self.LSDB[x][1] = self.LSDB[x][1]+1

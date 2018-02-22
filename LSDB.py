@@ -1,9 +1,11 @@
 import threading
+from operator import itemgetter
 from time import sleep
 
 from Deliver import deliver
 from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
 from utils import getIPofInterface
+from Dijkstra import shortestPathCalculator
 
 
 class LSDB:
@@ -14,6 +16,7 @@ class LSDB:
         self.MaxSeqNumber = 0x7fffffff
         self.Area = area
         self.routerClass = routerclass
+        self.graph = None
 
 
         self.thread = threading.Thread(target=self.run, args=())
@@ -33,44 +36,11 @@ class LSDB:
                     x.countAge()
                 sleep(1)
 
-    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
-        if opaquetype is False:     # Not an ABR Overlay LSA
-            for x in self.LSAs:
-                if x.getLSType() == LSType and x.getLSID() == LSID  and x.getADVRouter() == LSAdvRouter:
-                    return [True, x]
-            return False
-        else:
-            if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA
-                for x in self.LSAs:
-                    if x.getLSType() == LSType and x.getLSID() == LSID  and x.getOpaqueType() == opaquetype and \
-                                    x.getADVRouter() == LSAdvRouter:
-                        return [True, x]
-                return False
-            else:   # our LSA
-                if opaquetype ==20:
-                    # vamos atualizar o meu ABR lsa
-                    for x in self.LSAs:
-                        if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
-                                        x.getADVRouter() == LSAdvRouter:
-                            return [True, x]
-                    return False
-                if opaquetype == 21:
-                    # vamos atualizar um Prefix lsa meu
-                    for x in self.LSAs:
-                        if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
-                                        x.getADVRouter() == LSAdvRouter:
-                            if x.getSubnetMask() == lsa.getSubnetMask() and \
-                                    x.getSubnetAddress() == lsa.getSubnetAddress():
-                                return [True, x]
-                    return False
-                if opaquetype == 22:
-                    # vamos atualizar um ASBR lsa meu
-                    for x in self.LSAs:
-                        if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
-                                        x.getADVRouter() == LSAdvRouter:
-                            if x.getDestinationRID() == lsa.getDestinationRID():
-                                return [True, x]
-                    return False
+    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter,):
+        for x in self.LSAs:
+            if x.getLSType() == LSType and x.getLSID() == LSID  and x.getADVRouter() == LSAdvRouter:
+                return [True, x]
+        return False
 
     def removeLSA(self, LSType, LSID, LSAdvRouter, flush):
         for x in self.LSAs:
@@ -83,16 +53,34 @@ class LSDB:
         return False
 
     def receiveLSA(self, lsa):
-        exist = self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), lsa.getOpaqueType(), lsa)
-        if exist is not False:
-            x = exist[1]
-            self.LSAs.remove(x)
+        if self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter()):
+            x = self.removeLSA(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), False)
             lsa.setNextSN(x.getSeqNumber())
-            if self.getArea() == 'ABR':
-                lsa.setOpaqueID(x.getOpaqueID())
         lsa.calculateChecksum()
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)
+        self.constructgraph()
+
+        # add entry to routing table
+        if lsa.getLSType() == 2:    # Network-LSA
+            result=[]
+            rid = self.routerClass.getRouterID()
+            try:
+                for x in lsa.getAttachedRouters():
+                    result.append(shortestPathCalculator(self.graph, rid, x))
+                result = sorted(result, key=itemgetter('cost'))
+            except Exception:
+                    pass
+            if len(result) > 0:
+                leastcost = result[0]['cost']
+                bestpathsandcost = []
+                for x in range(0, len(result)-1):
+                    if result[x]['cost'] != leastcost:
+                        break
+                    bestpathsandcost.append(result[x])
+                print "best path:", bestpathsandcost
+                self.routerClass.addOSPFToRoutingTable(bestpathsandcost, lsa.getLSID(), lsa.getNetworkMask())
+
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
 
@@ -101,33 +89,17 @@ class LSDB:
         pack.receiveLSA(lsa)
         packed = pack.getPackLSUPD()
         sourceRouter = lsa.getSource()
-        if self.Area == 'ABR':
-            activeAreas = self.routerClass.getActiveAreas()
-            for x in activeAreas:
-                if sourceRouter == None:
-                    # pacote nosso. Envia para todas as interfaces ativas
-                    interfaces = self.routerClass.getInterfaceIPExcept(x)
-                else:
-                    # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
-                    sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
-                    interfaces = self.routerClass.getInterfaceIPExcept(x)
-                    sourceInterface = getIPofInterface(sourceInterface)
-                    interfaces.remove(sourceInterface)
-                if len(interfaces) != 0:
-                    deliver(packed, interfaces, None, True)
-
+        if sourceRouter == None:
+            # pacote nosso. Envia para todas as interfaces ativas
+            interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
         else:
-            if sourceRouter == None:
-                # pacote nosso. Envia para todas as interfaces ativas
-                interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
-            else:
-                # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
-                sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
-                interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
-                sourceInterface = getIPofInterface(sourceInterface)
-                interfaces.remove(sourceInterface)
-            if len(interfaces) != 0:
-                deliver(packed, interfaces, None, True)
+            # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
+            sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
+            interfaces = self.routerClass.getInterfaceIPExcept(self.Area)
+            sourceInterface = getIPofInterface(sourceInterface)
+            interfaces.remove(sourceInterface)
+        if len(interfaces) != 0:
+            deliver(packed, interfaces, None, True)
 
     def printLSDB(self):
         for x in self.LSAs:
@@ -167,7 +139,7 @@ class LSDB:
         out = []
         for x in self.LSAs:
 
-            if x.getLSType() == 2: #NetworkLSA
+            if x.getLSType() == 2:  # NetworkLSA
                 out.append(x)
         return out
 
@@ -175,6 +147,24 @@ class LSDB:
         out = []
         for x in self.LSAs:
             if x.getLSType() == 1 and x.getEbit() is True  and x.getBbit() is True and x.getADVRouter() != rid:
-                out.append(10, x.getADVRouter())  # TODO get cost to destination
+                out.append([10, x.getADVRouter()])  # TODO get cost to destination
         return out
+
+    def constructgraph(self):
+        G = {}
+        for x in self.LSAs:
+            if x.getLSType() == 1:    # Router-LSA
+                RID = x.getADVRouter()
+                Neigh = x.getDicOfNeighbors()
+                G[RID] = Neigh
+            else:
+                if x.getLSType() == 2:  #Network-LSA
+                    RID = x.getLSID()
+                    Neigh = x.getDicOfNeighbors()
+                    G[RID] = Neigh
+        self.graph = G
+
+
+
+
 

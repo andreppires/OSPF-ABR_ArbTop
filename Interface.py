@@ -34,11 +34,11 @@ class interface:
         self.Neighbours = []
         self.DesignatedRouter='0.0.0.0'
         self.BackupDesignatedRouter='0.0.0.0'
-        self.InterfaceOutputCost=10
+        self.InterfaceOutputCost = 10
         self.RxmtInterval = 30
         self.Autye= None
         self.AuthenticationKey = None
-        self.TypeofInterface = 3 #Stub
+        self.TypeofInterface = 3    # Stub
         self.LSATimer = 60*30
 
 
@@ -154,7 +154,7 @@ class interface:
                                                                       packet.BackupDesignatedRouter)})
                 if self.havetoNLSA():
                     self.createNLSA()
-                    self.routerclass.createLSA(self.AreaID, self.RouterID)
+                    self.routerclass.createLSA(self.AreaID, self.RouterID, False)
 
                 th = threading.Thread(target=self.startDDProcess, args=())
                 th.daemon = True
@@ -479,8 +479,11 @@ class interface:
                         j['StateBDR'] = True
                         j['BDR'] = x['neighbordAddress']
             else:
-                listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'),
+                try:
+                    listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'),
                                    reverse=True)
+                except Exception:
+                    pass
                 if len(listofBDR)== 0:
                     statebdr= False
                     bdr = '0.0.0.0'
@@ -565,7 +568,10 @@ class interface:
                             x['BDR'] = '0.0.0.0'
                             x['StateBDR'] = False
             else:
-                listofDR = sorted(listPossibleDR, key=itemgetter('RouterPriority'), reverse=True)
+                try:
+                    listofDR = sorted(listPossibleDR, key=itemgetter('RouterPriority'), reverse=True)
+                except Exception:
+                    pass
                 if len(listofDR) == 1:
                     if listofDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
                         dr = listofDR[0]['neighbordAddress']
@@ -654,7 +660,10 @@ class interface:
                             j['StateBDR'] = True
                             j['BDR'] = x['neighbordAddress']
                 else:
-                    listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'), reverse=True)
+                    try:
+                        listofBDR = sorted(listPossibleBDR, key=itemgetter('RouterPriority'), reverse=True)
+                    except Exception:
+                        pass
                     if len(listofBDR) == 0:
                         statebdr = False
                         bdr = '0.0.0.0'
@@ -739,7 +748,10 @@ class interface:
                                 x['BDR'] = '0.0.0.0'
                                 x['StateBDR'] = False
                 else:
-                    listofDR = sorted(listPossibleDR, key=itemgetter('RouterPriority'), reverse=True)
+                    try:
+                        listofDR = sorted(listPossibleDR, key=itemgetter('RouterPriority'), reverse=True)
+                    except Exception:
+                        pass
                     if len(listofDR) == 1:
                         if listofDR[0]['RouterID'] == routerItSelf['RouterID']:  # Eu sou o BDR
                             dr = listofDR[0]['neighbordAddress']
@@ -798,7 +810,7 @@ class interface:
         self.TypeofInterfaceChange()
         if self.havetoNLSA():
             self.createNLSA()
-        self.routerclass.createLSA(self.AreaID, self.RouterID)
+        self.routerclass.createLSA(self.AreaID, self.RouterID, False)
 
         # Backup Designated Router Updated
         self.BackupDesignatedRouter = bdr
@@ -841,9 +853,9 @@ class interface:
 
     def TypeofInterfaceChange(self):
         if len(self.Neighbours) == 0:
-            self.TypeofInterface = 3
+            self.TypeofInterface = 3    # Stub Network
         else:
-            self.TypeofInterface = 2
+            self.TypeofInterface = 2    # Transit Network
 
     def readLSUpdate(self, packet):
         LSAs = packet.getReceivedLSAs()

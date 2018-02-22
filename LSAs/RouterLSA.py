@@ -48,7 +48,6 @@ class RouterLSA(LSAHeader):
         print "Links Data:", self.LinksData
 
     def packRLSA(self):
-        #self.printaTudoo()
         first = self.V*4 + self.E*2 + self.B
         pack = struct.pack(OSPF_LSA_ROUTER, first, 0, self.NumberLinks)
 
@@ -72,3 +71,9 @@ class RouterLSA(LSAHeader):
 
     def getPrefixandCost(self):
         return [10, self.AdvertisingRouter] # TODO get the right cost
+
+    def getDicOfNeighbors(self):
+        out ={}
+        for x in self.LinksData:
+            out[x[0]] = x[4]
+        return out

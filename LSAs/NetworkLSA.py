@@ -26,6 +26,9 @@ class NetworkLSA(LSAHeader):
         self.setLength(hdlen+netlen, ck)
         return hdlen+netlen
 
+    def getAttachedRouters(self):
+        return self.attachedRouter
+
     def calculateChecksum(self):
         lg = self.calculateLength(True)
 
@@ -52,4 +55,11 @@ class NetworkLSA(LSAHeader):
         network = utils.getNetworkfromIPandMask(self.LinkStateID, self.NetworkMask)
         return [10, self.NetworkMask, network] # TODO need to calculate the shortest path cost
 
+    def getDicOfNeighbors(self):
+        out = {}
+        for x in self.attachedRouter:
+            out[x] = 0
+        return out
 
+    def getNetworkMask(self):
+        return self.NetworkMask

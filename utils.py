@@ -3,6 +3,7 @@ import socket
 import fcntl
 import struct
 import binascii
+import sys
 
 from LSAs.LSAHeader import LSAHeader
 
