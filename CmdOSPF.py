@@ -12,6 +12,7 @@ from LSDB import LSDB
 from Interface import interface
 from LSAs.RouterLSA import RouterLSA
 from LSAs.ABRLSA import ABRLSA
+from RoutingTable import RoutingTable
 
 OSPF_TYPE_IGP = '59'
 HELLO_PACKET = '01'
@@ -37,6 +38,7 @@ class cmdOSPF(cmd.Cmd):
         self.StartInterfacesList()
         self.LSDB = {}
         self.OpaqueID = 0
+        self.routingTable = RoutingTable(self)
 
         self.thread = threading.Thread(target=self.multicastReceiver, args=())
         self.thread.daemon = True
@@ -74,21 +76,28 @@ class cmdOSPF(cmd.Cmd):
     def do_lsdb(self, line):
         self.LSDB[line][0].printLSDB()
 
+    def do_graph(self, line):
+        self.LSDB[line][0].printGraph()
+
     def do_list(self,line):
         """list interfaces"""
         print utils.getAllInterfaces()
 
+    def do_routing_table(self, line):
+        self.routingTable.printAll()
+
     def do_interface(self, line):
-        """interface [name interface] [area]"""
+        """interface [name interface] [area] [cost]"""
         print "Add interface to OSPF"
-        inter,area=line.split()
-        intadd=utils.getIPofInterface(inter)
-        type=utils.getTypeofInterface(inter)
+        inter, area, cost = line.split()
+        cost = int(cost)
+        intadd = utils.getIPofInterface(inter)
+        type = utils.getTypeofInterface(inter)
         netmask = utils.getNetMaskofInterface(inter)
 
 
         self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval, self.RouterDeadInterval,
-                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self), inter,
+                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self, cost), inter,
                           self.RouterID, area)
 
     def multicastReceiver(self):
@@ -133,15 +142,6 @@ class cmdOSPF(cmd.Cmd):
         for x in utils.getAllInterfaces():
             self.listInterfaces.append({'interface-name':x, 'ip':utils.getIPofInterface(x),
                                         'netmask':utils.getNetMaskofInterface(x), 'interface-object': None})
-
-    def addOSPFToRoutingTable(self, listpath, ipNetworkDR, netmask):    #TODO not finished
-        ipNetwork = utils.getNetworkfromIPandMask(ipNetworkDR, netmask)
-        print "aqui estou eu", len(listpath)
-        for x in range(0, len(listpath)):
-            print "dentro do for"
-            destinationEntry = [ipNetwork, listpath[x]['path'], listpath[x]['cost']]
-            print destinationEntry
-            print "HEY!"
 
     def setInterface(self, object_interface , interface_name, rid, area):
         for x in self.listInterfaces:
@@ -197,9 +197,8 @@ class cmdOSPF(cmd.Cmd):
 
     def createLSDBforABROverlay(self):
         if 'ABR' not in self.LSDB:
-            x = [LSDB('ABR', self), 0]
+            x = [ABRLSDB('ABR', self), 0]
             self.LSDB['ABR'] = x
-            sleep(60)
             self.createASBRLSAs()
             self.createPrefixLSAs()
         self.createABRLSA()
@@ -226,17 +225,7 @@ class cmdOSPF(cmd.Cmd):
         self.LSDB['ABR'][0].receiveLSA(lsa)
 
     def createPrefixLSAs(self):
-        # Get Network-LSAs
-        for x in self.LSDB:
-            if x == 'ABR': # special LSDB
-                continue
-            for y in self.LSDB[x][0].getNetworkLSAs():
-                # create PrefixLSA for every NetworkLSA
-                opaqueID = self.getOpaqueID()
-                data = y.getPrefixAndCost()
-                lsa = PrefixLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0,
-                                data[0], data[1], data[2])
-                self.LSDB['ABR'][0].receiveLSA(lsa)
+        self.routingTable.createPrefixLSAs()
 
     def createASBRLSAs(self):
         # Get ASBRs Routers
@@ -282,7 +271,6 @@ class cmdOSPF(cmd.Cmd):
         for x in range(len(self.listInterfaces)):
             if self.listInterfaces[x]['interface-name'] == interface_name:
                 return self.listInterfaces[x]['interface-object']
-
         return 0 #error
 
     def receiveLSAtoLSDB(self, lsa, area):
@@ -311,3 +299,15 @@ class cmdOSPF(cmd.Cmd):
     def receivenewLSA(self, lsa):
         if 'ABR' in self.LSDB:
             self.receiveLSAtoLSDB(lsa, 'ABR')
+
+    def setNewRoutes(self, routes):
+        self.routingTable.receiveEntries(routes)
+
+    def createPrefixLSA(self, prefix, cost, netmask):
+        opaqueID = self.getOpaqueID()
+        lsa = PrefixLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0,
+                        cost, netmask, prefix)
+        if 'ABR' in self.LSDB:
+            self.LSDB['ABR'][0].receiveLSA(lsa)
+
+

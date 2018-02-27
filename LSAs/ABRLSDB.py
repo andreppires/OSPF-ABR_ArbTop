@@ -16,39 +16,6 @@ class ABRLSDB(LSDB):
         self.thread.daemon = True
         self.thread.start()
 
-    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
-        if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA
-            for x in self.LSAs:
-                if x.getLSType() == LSType and x.getLSID() == LSID  and x.getOpaqueType() == opaquetype and \
-                                x.getADVRouter() == LSAdvRouter:
-                    return [True, x]
-            return False
-        else:   # our LSA
-            if opaquetype ==20:
-                # vamos atualizar o meu ABR lsa
-                for x in self.LSAs:
-                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
-                                    x.getADVRouter() == LSAdvRouter:
-                        return [True, x]
-                return False
-            if opaquetype == 21:
-                # vamos atualizar um Prefix lsa meu
-                for x in self.LSAs:
-                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
-                                    x.getADVRouter() == LSAdvRouter:
-                        if x.getSubnetMask() == lsa.getSubnetMask() and \
-                                        x.getSubnetAddress() == lsa.getSubnetAddress():
-                            return [True, x]
-                return False
-            if opaquetype == 22:
-                # vamos atualizar um ASBR lsa meu
-                for x in self.LSAs:
-                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
-                                    x.getADVRouter() == LSAdvRouter:
-                        if x.getDestinationRID() == lsa.getDestinationRID():
-                            return [True, x]
-                return False
-
     def removeLSA(self, LSType, LSID, LSAdvRouter, flush):
         for x in self.LSAs:
             if x.getLSType() == LSType and x.getLSID() == LSID  and x.getADVRouter() == LSAdvRouter:
@@ -74,6 +41,39 @@ class ABRLSDB(LSDB):
         self.FlushLSA(lsa)
         self.constructgraph()
         # TODO get entries to Summaries and table
+
+    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
+        if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA
+            for x in self.LSAs:
+                if x.getLSType() == LSType and x.getLSID() == LSID  and x.getOpaqueType() == opaquetype and \
+                                x.getADVRouter() == LSAdvRouter:
+                    return [True, x]
+            return False
+        else:   # our LSA
+            if opaquetype == 20:
+                # vamos atualizar o meu ABR lsa
+                for x in self.LSAs:
+                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
+                                    x.getADVRouter() == LSAdvRouter:
+                        return [True, x]
+                return False
+            if opaquetype == 21:
+                # vamos atualizar um Prefix lsa meu
+                for x in self.LSAs:
+                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
+                                    x.getADVRouter() == LSAdvRouter:
+                        if x.getSubnetMask() == lsa.getSubnetMask() and \
+                                        x.getSubnetAddress() == lsa.getSubnetAddress():
+                            return [True, x]
+                return False
+            if opaquetype == 22:
+                # vamos atualizar um ASBR lsa meu
+                for x in self.LSAs:
+                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
+                                    x.getADVRouter() == LSAdvRouter:
+                        if x.getDestinationRID() == lsa.getDestinationRID():
+                            return [True, x]
+                return False
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
 

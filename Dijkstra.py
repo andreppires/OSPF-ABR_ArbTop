@@ -28,9 +28,9 @@ def shortestPathCalculator(graph, start, end):
 
     out = dijkstra(edges, start, end)
     data = {}
-    data['cost']=out[0]
+    data['cost'] = out[0]
     aux=[]
-    while len(out)>1:
+    while len(out) > 1:
         aux.append(out[0])
         out = out[1]
     aux.remove(data['cost'])

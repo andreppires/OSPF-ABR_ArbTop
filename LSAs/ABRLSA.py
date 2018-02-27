@@ -23,10 +23,8 @@ class ABRLSA(HeaderOpaqueLSA):
         self.LinkData.remove(entry)
 
     def printLSA(self):
-        print "ABR LSA:"
-        print "Opaque ID          ADV Router      Age     Seq#        Neighbors count"
-        print self.getOpaqueID(),"      ",self.getADVRouter(),"      ",self.getAge(),\
-            "      ", self.getSeqNumber(),"      ", len(self.LinkData)
+        print "##### ABR-LSA id:", self.OpaqueID
+        print "ADV Router:", self.getADVRouter(), "\tNeighbors count:", len(self.LinkData)
 
     def calculateLength(self, ck):
 

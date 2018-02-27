@@ -1,6 +1,10 @@
+from operator import itemgetter
+
+
 class RoutingTable():
-    def __init__(self):
+    def __init__(self, routingclass):
         self.routingEntries=[]
+        self.RoutingClass = routingclass
 
     def removeEntry(self, entry):
         self.routingEntries.remove(entry)
@@ -8,43 +12,51 @@ class RoutingTable():
     def addEntry(self, entry):
         self.routingEntries.append(entry)
 
-    def receiveEntry(self, newentry):
-        entry = self.alredyExists(newentry)
-        if len(entry)>1:
-                toCompare=entry[0]
-                if self.compareEntry(toCompare, newentry):
-                    for x in entry:
-                        self.removeEntry(x)
-                    self.addEntry(newentry)
-                    # Changes in the routing table
-                    # recalculate shortest path and cost to destination
-                    # recalculate shortest path and cost to Neighbord ABR
-        else:
-            if len(entry) == 1:
-                if self.compareEntry(entry, newentry):
-                    self.removeEntry(entry)
-                    self.addEntry(newentry)
-                    # Changes in the routing table
-                    # recalculate shortest path and cost to destination
-                    # recalculate shortest path and cost to Neighbord ABR
-            else:
-                self.addEntry(newentry)
+    def printAll(self):
+        data = sorted(self.routingEntries, key=itemgetter('destination'))
+        for x in data:
+            print"Prefix:", x['destination'], '\tMask:', x['netmask'], '\tCost:',\
+                x['cost'], '\tPath:', x['path']
 
+    def receiveEntries(self, listentries):
+        for destination in listentries:
+            entry = self.alredyExists(destination)
+            if entry is not False:
+                if self.compareEntry(entry, destination):
+                    self.removeEntry(entry)
+                    self.addEntry(destination)
+                    # Changes in the routing table
+                    # recalculate shortest path and cost to destination
+                    # recalculate shortest path and cost to Neighbord ABR
+                    self.AlertPrefixLSA(destination)
+
+                else:
+                    # equal cost. Dont need to anounce new Prefix LSA
+                    # Update path
+                    entry['path']= destination['path']
+            else:
+                self.addEntry(destination) # nao havia nenhuma rota para o destino
+                self.AlertPrefixLSA(destination)
+
+    def AlertPrefixLSA(self, destination):
+        prefix = destination['destination']
+        cost = destination['cost']
+        netmaks = destination['netmask']
+
+        self.RoutingClass.createPrefixLSA(prefix, cost, netmaks)
 
     def alredyExists(self, newentry):
-        out=[]
         for x in self.routingEntries:
             if x['destination'] == newentry['destination']:
-                out.append(x)
-        return out
+                return x
+        return False
 
     def compareEntry(self, old, new):
-        # nao interessa o custo se e menor ou mais.
-        # cada vez que se recebe um novo LSA volta-se a calcular o custo e o caminho para
-        # os destinos. Se forem diferentes entao temos de colocar novas entradas e criar
-        # os novos Prefix-LSA respectivos
-
-        if new != old:
+        if new['cost'] != old['cost']:
             return True
         else:
             return False
+
+    def createPrefixLSAs(self):
+        for x in self.routingEntries:
+            self.AlertPrefixLSA(x)

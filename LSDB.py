@@ -4,7 +4,7 @@ from time import sleep
 
 from Deliver import deliver
 from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
-from utils import getIPofInterface
+from utils import getIPofInterface, getNetworkfromIPandMask
 from Dijkstra import shortestPathCalculator
 
 
@@ -25,6 +25,9 @@ class LSDB:
 
     def getArea(self):
         return self.Area
+
+    def printGraph(self):
+        print self.graph
 
     def run(self):
         sleep(1)
@@ -60,28 +63,40 @@ class LSDB:
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)
         self.constructgraph()
+        self.recalculateshortestPaths()
 
-        # add entry to routing table
-        if lsa.getLSType() == 2:    # Network-LSA
-            result=[]
-            rid = self.routerClass.getRouterID()
-            try:
-                for x in lsa.getAttachedRouters():
-                    result.append(shortestPathCalculator(self.graph, rid, x))
-                result = sorted(result, key=itemgetter('cost'))
-            except Exception:
+    def recalculateshortestPaths(self):
+        leastcostpathroutes = []
+        rid = self.routerClass.getRouterID()
+        for x in self.LSAs:
+            routes = []
+            haveToSend = False
+
+            if x.getLSType() == 2:    # Network-LSA
+                try:
+                    result = []
+                    for y in x.getAttachedRouters():
+                        result.append(shortestPathCalculator(self.graph, rid, y))
+                    result = sorted(result, key=itemgetter('cost'))
+                    leastcost = result[0]['cost']
+                    for z in range(0, len(result)-1):
+                        if result[z]['cost'] != leastcost:
+                            break
+                        routes.append(result[z]['path'])
+                        haveToSend = True
+                except Exception:
                     pass
-            if len(result) > 0:
-                leastcost = result[0]['cost']
-                bestpathsandcost = []
-                for x in range(0, len(result)-1):
-                    if result[x]['cost'] != leastcost:
-                        break
-                    bestpathsandcost.append(result[x])
-                print "best path:", bestpathsandcost
-                self.routerClass.addOSPFToRoutingTable(bestpathsandcost,
-                                                       lsa.getLSID(), lsa.getNetworkMask())
+                if haveToSend:
+                    aux = {}
+                    aux['destination'] = getNetworkfromIPandMask(x.getLSID(), x.getNetworkMask())
+                    aux['cost'] = leastcost
+                    aux['path'] = routes
+                    aux['netmask'] = x.getNetworkMask()
+                    aux['area'] = self.getArea()
+                    leastcostpathroutes.append(aux)
 
+
+        self.routerClass.setNewRoutes(leastcostpathroutes)
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
 
@@ -103,12 +118,12 @@ class LSDB:
             deliver(packed, interfaces, None, True)
 
     def printLSDB(self):
+        self.LSAs = sorted(self.LSAs, key=lambda LSA: LSA.getLSType())
         for x in self.LSAs:
             x.printLSA()
 
     def getHeaderLSAs(self):
         list=[]
-        lg=0
         for x in self.LSAs:
             list.append(x.getHeaderPack(False))
         return list

@@ -16,7 +16,7 @@ from LSAs.PrefixLSA import PrefixLSA
 class interface:
     """Interface class"""
     def __init__(self, type, ipint, ipintmask, areaID, helloint, routerDeadInterval, IntTransDelay,
-                 routerPriority, rid, router):
+                 routerPriority, rid, router, interfaceCost):
         self.routerclass = router
         self.Type = type
         self.State = 1
@@ -34,7 +34,7 @@ class interface:
         self.Neighbours = []
         self.DesignatedRouter='0.0.0.0'
         self.BackupDesignatedRouter='0.0.0.0'
-        self.InterfaceOutputCost = 10
+        self.InterfaceOutputCost = interfaceCost
         self.RxmtInterval = 30
         self.Autye= None
         self.AuthenticationKey = None
@@ -83,7 +83,6 @@ class interface:
                                 self.RouterDeadInterval, self.DesignatedRouter, self.BackupDesignatedRouter, neighbords)
 
         deliver(HelloPack.getHelloPackettoSend(), [self.IPInterfaceAddress], 0, True)
-        print "Hello enviado: interface" + self.IPInterfaceAddress
 
     def decreaseLSATimer(self):
         self.LSATimer -= 1
@@ -145,7 +144,6 @@ class interface:
                     self.getNeighbord(packet.RouterID).updateFromHello(packet)
                     continue
             if found == False:
-                print "Novo Vizinho!"
 
                 self.Neighbours.append({'RouterID': packet.RouterID,
                                         'Neighbord-object': neighbord(self, packet.RouterDeadInterval, packet.RouterID,
@@ -385,12 +383,10 @@ class interface:
             self.State = 4  # DR Other
             self.BackupDesignatedRouter = BDR
             self.DesignatedRouter = DR
-            print "DR Other"
         elif state == 1:   # alguem ja e DR e nao ha BDR
             self.State = 5  # Backup Designated Router
             self.DesignatedRouter = DR
             self.BackupDesignatedRouter = self.IPInterfaceAddress
-            print "sou BDR"
 
     def NeighborChange(self):
         self.DRElection()
@@ -868,12 +864,6 @@ class interface:
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
             self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
-            if x.getLSType() == 2:    # Network-LSA
-                data = x.getPrefixAndCost()
-                prefixlsa = PrefixLSA(None, 0, 2, self.routerclass.getOpaqueID(), self.RouterID, 0, 0, 0,
-                                data[0], data[1], data[2])
-                self.routerclass.receivenewLSA(prefixlsa)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)
-
