@@ -100,13 +100,8 @@ class ABRLSDB(LSDB):
     def constructgraph(self):
         G = {}
         for x in self.LSAs:
-            if x.getLSType() == 11 and x.getOpaqueType== 20:    # ABR-LSA
+            if x.getLSType() == 11 and x.getOpaqueType() == 20:    # ABR-LSA
                 RID = x.getADVRouter()
                 Neigh = x.getDicOfNeighbors()
                 G[RID] = Neigh
         self.graph = G
-
-
-
-
-
