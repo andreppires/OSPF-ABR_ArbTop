@@ -52,6 +52,8 @@ class LSDB:
                     x.setMaxAge()
                     self.FlushLSA(x)
                 self.LSAs.remove(x)
+                self.constructgraph()
+                self.recalculateshortestPaths()
                 return x
         return False
 
@@ -76,7 +78,14 @@ class LSDB:
                 try:
                     result = []
                     for y in x.getAttachedRouters():
-                        result.append(shortestPathCalculator(self.graph, rid, y))
+                        data1 = shortestPathCalculator(self.graph, rid, y)
+                        data2 = shortestPathCalculator(self.graph, y, x.getLSID())
+                        del data2['path'][0]
+                        sumatorio = {}
+                        sumatorio['path'] = data1['path'] + data2['path']
+                        sumatorio['cost'] = data1['cost'] + data2['cost']
+
+                        result.append(sumatorio)
                     result = sorted(result, key=itemgetter('cost'))
                     leastcost = result[0]['cost']
                     for z in range(0, len(result)-1):
