@@ -302,8 +302,6 @@ class interface:
         packet = LinkStateRequestPacket(self.IPInterfaceAddress, 2, 3,
                                             self.RouterID, self.AreaID, 0, 0, 0, 0)
 
-        print "vou agora criar o LS-Request:", self.getIPIntAddr()
-        print LSAHeaders
         haveToSend = False
         for x in LSAHeaders:
              LSAH = unpackLSAHeader(x)
@@ -316,10 +314,8 @@ class interface:
                                         'AdvertisingRouter': LSAH.getADVRouter()})
         # send LS-Request
         if haveToSend:
-            print "vou enviar LS-REQ"
             pack = packet.getLSReqToSend()
             deliver(pack, self.IPInterfaceAddress, sourceRouter, False)
-            print "enviado!"
             self.TakeCareofLSUpdate()
 
     def TakeCareofLSUpdate(self):
