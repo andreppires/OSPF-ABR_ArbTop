@@ -1,6 +1,8 @@
 import threading
 
 from Deliver import deliver
+from Dijkstra import shortestPathCalculator
+from LSAs.SummaryLSA import SummaryLSA
 from LSDB import LSDB
 from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
 from utils import getIPofInterface
@@ -40,7 +42,20 @@ class ABRLSDB(LSDB):
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)
         self.constructgraph()
-        # TODO get entries to Summaries and table
+        if lsa.getOpaqueType() == 21: # Prefix LSA
+            self.createSummaryLSA(lsa)
+
+    def createSummaryLSA(self, lsa):
+        lsid = lsa.getSubnetAddress()
+        subnetmask = lsa.getSubnetMask()
+        metric = lsa.getMetric()
+        rid = self.routerClass.getRouterID()
+        try:
+            extraCost = shortestPathCalculator(self.graph, rid, lsa.getADVRouter())
+            metric += extraCost
+        except:
+            pass
+        self.routerClass.createSummaryLSAfromPrefixLSA(lsid, subnetmask, metric)
 
     def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
         if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA

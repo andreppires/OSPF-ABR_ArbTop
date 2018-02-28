@@ -8,6 +8,7 @@ import utils
 from LSAs.ABRLSDB import ABRLSDB
 from LSAs.ASBRLSA import ASBRLSA
 from LSAs.PrefixLSA import PrefixLSA
+from LSAs.SummaryLSA import SummaryLSA
 from LSDB import LSDB
 from Interface import interface
 from LSAs.RouterLSA import RouterLSA
@@ -310,4 +311,12 @@ class cmdOSPF(cmd.Cmd):
         if 'ABR' in self.LSDB:
             self.LSDB['ABR'][0].receiveLSA(lsa)
 
+    def createSummaryLSAfromPrefixLSA(self, lsid, netmask, metric):
+        print "cheguei aqui!"
+        newLSA = SummaryLSA(None, 0, 2, 3, lsid, self.getRouterID(), 0, 0, 0, netmask, metric)
+        for x in self.LSDB:
+            if x == 'ABR':
+                continue
+            print "vou meter na LSDB", x
+            self.LSDB[x][0].receiveLSA(newLSA)
 

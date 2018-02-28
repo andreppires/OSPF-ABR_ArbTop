@@ -21,6 +21,9 @@ class PrefixLSA(HeaderOpaqueLSA):
     def getSubnetAddress(self):
         return self.SubnetAddress
 
+    def getMetric(self):
+        return self.Metric
+
     def printLSA(self):
         print "##### Prefix-LSA id:", self.OpaqueID
         print "Prefix", self.SubnetAddress, "\tSubnet Mask:", self.SubnetMask, "\tMetric:", self.Metric
