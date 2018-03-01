@@ -1,18 +1,19 @@
 import cmd
 import threading
-from time import sleep
 from socket import *
+from time import sleep
 
 import mcast
 import utils
-from LSAs.ABRLSDB import ABRLSDB
+from ABR.ABRLSDB import ABRLSDB
+from ABR.ABRRoutingTable import ABRRoutingTable
+from Interface import interface
+from LSAs.ABRLSA import ABRLSA
 from LSAs.ASBRLSA import ASBRLSA
 from LSAs.PrefixLSA import PrefixLSA
+from LSAs.RouterLSA import RouterLSA
 from LSAs.SummaryLSA import SummaryLSA
 from LSDB import LSDB
-from Interface import interface
-from LSAs.RouterLSA import RouterLSA
-from LSAs.ABRLSA import ABRLSA
 from RoutingTable import RoutingTable
 
 OSPF_TYPE_IGP = '59'
@@ -39,7 +40,8 @@ class cmdOSPF(cmd.Cmd):
         self.StartInterfacesList()
         self.LSDB = {}
         self.OpaqueID = 0
-        self.routingTable = RoutingTable(self)
+        self.fakeRoutingTable = RoutingTable(self)
+        self.realRoutingTable = ABRRoutingTable(self)
 
         self.thread = threading.Thread(target=self.multicastReceiver, args=())
         self.thread.daemon = True
@@ -84,8 +86,11 @@ class cmdOSPF(cmd.Cmd):
         """list interfaces"""
         print utils.getAllInterfaces()
 
+    def do_fake_routing_table(self, line):
+        self.fakeRoutingTable.printAll()
+
     def do_routing_table(self, line):
-        self.routingTable.printAll()
+        self.realRoutingTable.printAll()
 
     def do_interface(self, line):
         """interface [name interface] [area] [cost]"""
@@ -226,7 +231,7 @@ class cmdOSPF(cmd.Cmd):
         self.LSDB['ABR'][0].receiveLSA(lsa)
 
     def createPrefixLSAs(self):
-        self.routingTable.createPrefixLSAs()
+        self.fakeRoutingTable.createPrefixLSAs()
 
     def createASBRLSAs(self):
         # Get ASBRs Routers
@@ -301,8 +306,12 @@ class cmdOSPF(cmd.Cmd):
         if 'ABR' in self.LSDB:
             self.receiveLSAtoLSDB(lsa, 'ABR')
 
-    def setNewRoutes(self, routes):
-        self.routingTable.receiveEntries(routes)
+    def setNewRoutes(self, routes, whatRT):
+        if whatRT:
+            self.realRoutingTable.receiveEntries(routes)
+        else:
+            self.fakeRoutingTable.receiveEntries(routes)
+
 
     def createPrefixLSA(self, prefix, cost, netmask):
         opaqueID = self.getOpaqueID()
@@ -312,11 +321,9 @@ class cmdOSPF(cmd.Cmd):
             self.LSDB['ABR'][0].receiveLSA(lsa)
 
     def createSummaryLSAfromPrefixLSA(self, lsid, netmask, metric):
-        print "cheguei aqui!"
         newLSA = SummaryLSA(None, 0, 2, 3, lsid, self.getRouterID(), 0, 0, 0, netmask, metric)
         for x in self.LSDB:
             if x == 'ABR':
                 continue
-            print "vou meter na LSDB", x
             self.LSDB[x][0].receiveLSA(newLSA)
 

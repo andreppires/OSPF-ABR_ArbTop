@@ -64,8 +64,10 @@ class LSDB:
         lsa.calculateChecksum()
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)
-        self.constructgraph()
-        self.recalculateshortestPaths()
+        lsatype = lsa.getLSType()
+        if lsatype == 1 or lsatype ==2: # se o lsa recebido for um netork ou router LSA.
+            self.constructgraph()
+            self.recalculateshortestPaths()
 
     def recalculateshortestPaths(self):
         leastcostpathroutes = []
@@ -101,11 +103,10 @@ class LSDB:
                     aux['cost'] = leastcost
                     aux['path'] = routes
                     aux['netmask'] = x.getNetworkMask()
-                    aux['area'] = self.getArea()
                     leastcostpathroutes.append(aux)
 
 
-        self.routerClass.setNewRoutes(leastcostpathroutes)
+        self.routerClass.setNewRoutes(leastcostpathroutes, False)
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
 

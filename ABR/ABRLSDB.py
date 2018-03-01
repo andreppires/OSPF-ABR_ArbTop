@@ -42,8 +42,45 @@ class ABRLSDB(LSDB):
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)
         self.constructgraph()
-        if lsa.getOpaqueType() == 21: # Prefix LSA
-            self.createSummaryLSA(lsa)
+        self.recalculateshortestPaths()
+
+    def recalculateshortestPaths(self):
+        leastcostpathroutes = []
+        visited = []
+        rid = self.routerClass.getRouterID()
+        for x in self.LSAs:
+            if x.getOpaqueType() == 20: #ABR LSA
+                visited.append(x)
+                continue
+            if x.getOpaqueType() == 21: #Prefix LSA
+                bestchoice = x
+                visited.append(x)
+                destination = x.getSubnetAddress()
+                netmask = x.getSubnetMask()
+                try:
+                    cost = x.getMetric() + \
+                           shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
+                except:
+                    pass
+                for y in self.LSAs:
+                    if y not in visited:
+                        visited.append(y)
+                        if y.getOpaqueType() == 21:
+                            if y.getSubnetAddress() == destination and y.getSubnetMask() == netmask:
+                                thisCost = y.getMetric() + shortestPathCalculator(self.graph, rid, y.getADVRouter())
+                                if thisCost < cost:
+                                    bestchoice = y
+                                    cost = thisCost
+                aux = {}
+                aux['destination'] = destination
+                aux['cost'] = cost
+                aux['path'] = bestchoice.getADVRouter()
+                aux['netmask'] = netmask
+                leastcostpathroutes.append(aux)
+
+            self.routerClass.setNewRoutes(leastcostpathroutes, True)
+
+
 
     def createSummaryLSA(self, lsa):
         lsid = lsa.getSubnetAddress()
