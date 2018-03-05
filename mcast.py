@@ -275,7 +275,6 @@ def readPack(addr, data):
                     packet.receiveLSA(newNetworkLSA)
 
                 if LSType == 3:     # Summary-LSA (IP Network)
-                    print "Read of Summary Network LSA not done"
                     pass
 
                 if LSType == 4:     # Summary-LSA (ASBR)

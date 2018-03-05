@@ -1,5 +1,6 @@
 import cmd
 import threading
+from operator import itemgetter
 from socket import *
 from time import sleep
 
@@ -102,9 +103,9 @@ class cmdOSPF(cmd.Cmd):
         netmask = utils.getNetMaskofInterface(inter)
 
 
-        self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval, self.RouterDeadInterval,
-                                    self.IntTransDelay, self.RouterPriority, self.RouterID, self, cost), inter,
-                          self.RouterID, area)
+        self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval,
+                                    self.RouterDeadInterval, self.IntTransDelay, self.RouterPriority,
+                                    self.RouterID, self, cost), inter,self.RouterID, area)
 
     def multicastReceiver(self):
         MCAST_GROUP = '224.0.0.5'
@@ -327,3 +328,26 @@ class cmdOSPF(cmd.Cmd):
                 continue
             self.LSDB[x][0].receiveLSA(newLSA)
 
+    def getRoutingDatatointraareaRouting(self, destination):
+        return self.fakeRoutingTable.getdataabout(destination)
+
+    def getbestpathtoABR(self, abr):
+        entries = []
+        for x in self.LSDB:
+            if x=='ABR':
+                continue
+            data =self.LSDB[0].getPathtoDestination(abr)
+            if data is not False:
+                entries.append(data)
+        if len(entries)>0:
+            routes = []
+            entries = sorted(entries, key=itemgetter('cost'))
+            leastcost = entries[0]['cost']
+            for z in range(0, len(entries) - 1):
+                if entries[z]['cost'] != leastcost:
+                    break
+                routes.append(entries[z])
+
+            return routes
+        else:
+            return False

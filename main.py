@@ -4,8 +4,12 @@ from CmdOSPF import cmdOSPF
 
 def main():
 
-    #Stop firewall service to allow all the packets
+    # Stop firewall service to allow all the packets
     bashCommand = "sudo systemctl stop firewalld.service"
+    os.system(bashCommand)
+
+    # Allow packet forwarding
+    bashCommand = "sysctl -w net.ipv4.ip_forward=1"
     os.system(bashCommand)
 
     print "Firewall services stopped"

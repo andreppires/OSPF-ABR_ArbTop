@@ -12,6 +12,10 @@ class RoutingTable():
     def addEntry(self, entry):
         self.routingEntries.append(entry)
 
+    def getdataabout(self, destination):
+        return self.alredyExists(destination)
+
+
     def printAll(self):
         data = sorted(self.routingEntries, key=itemgetter('destination'))
         for x in data:
@@ -20,7 +24,7 @@ class RoutingTable():
 
     def receiveEntries(self, listentries):
         for destination in listentries:
-            entry = self.alredyExists(destination)
+            entry = self.alredyExists(destination['destination'])
             if entry is not False:
                 if self.compareEntry(entry, destination):
                     self.removeEntry(entry)
@@ -33,7 +37,7 @@ class RoutingTable():
                 else:
                     # equal cost. Dont need to anounce new Prefix LSA
                     # Update path
-                    entry['path']= destination['path']
+                    entry['path'] = destination['path']
             else:
                 self.addEntry(destination) # nao havia nenhuma rota para o destino
                 self.AlertPrefixLSA(destination)
@@ -45,9 +49,9 @@ class RoutingTable():
 
         self.RoutingClass.createPrefixLSA(prefix, cost, netmaks)
 
-    def alredyExists(self, newentry):
+    def alredyExists(self, destination):
         for x in self.routingEntries:
-            if x['destination'] == newentry['destination']:
+            if x['destination'] == destination:
                 return x
         return False
 

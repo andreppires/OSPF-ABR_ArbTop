@@ -190,7 +190,11 @@ class LSDB:
                     G[RID] = Neigh
         self.graph = G
 
-
-
+    def getPathtoDestination(self, abr):
+        rid = self.routerClass.getRouterID()
+        try:
+            return shortestPathCalculator(self.graph, rid, abr)
+        except:
+            return False
 
 

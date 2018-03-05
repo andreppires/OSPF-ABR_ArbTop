@@ -83,6 +83,9 @@ def getNetworkIP(ipadd, netmask):
         return splitted[0] + '.' + splitted[1] + '.0.0'
     print "Netmask not supported!"
 
+def calcDottedNetmask(mask):
+    return sum([bin(int(x)).count('1') for x in mask.split('.')])
+
 
 def getAllInterfaces():
     return os.listdir('/sys/class/net/')
