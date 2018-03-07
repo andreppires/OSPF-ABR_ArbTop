@@ -2,6 +2,7 @@ from socket import *
 from string import atoi
 from binascii import b2a_hex, b2a_qp
 
+from LSAs.SummaryLSA import SummaryLSA
 from utils import getIPAllInterfaces, IPtoDec
 
 from OSPFPackets.LinkStateAcknowledgmentPacket import LinkStateAcknowledgmentPacket
@@ -169,11 +170,8 @@ def readPack(addr, data):
                 IMMS = IMMS -1
             if DEBUG:
                 print "IMMS = ",IMMS,"- tem de ser igual a 0!"
-            dd1 = str(hex(td(data[pos + 28])))
-            dd2 = str(hex(td(data[pos + 29])))
-            dd3 = str(hex(td(data[pos + 30])))
-            dd4 = str(hex(td(data[pos + 31])))
-            DDSequenceNumber = int(dd1 + dd2[2:] + dd3[2:] + dd4[2:], 16)
+
+            DDSequenceNumber = IPtoDec(inet_ntoa(data[pos + 28:pos + 32]))
 
             packet = DatabaseDescriptionPacket(addr[0], type, version, RouterID, areaID, checksum, AuType,
                                                authentication1, authentication2, options, I, M, MS, DDSequenceNumber,
@@ -224,9 +222,9 @@ def readPack(addr, data):
             newpos = pos + 28
 
             for x in range(0,NLSAs): #Read the LSAs
-                LSAge = int(str(hex(td(data[newpos]))) + str(hex(td(data[newpos+1])))[2:] ,16)
-                Options = int(hex(td(data[newpos+2])) ,16)
-                LSType = int(str(td(data[newpos+3])) ,16)
+                LSAge = td(data[newpos]) + td(data[newpos+1])
+                Options = td(data[newpos+2])
+                LSType = td(data[newpos+3])
                 LSID = (inet_ntoa(data[newpos + 4:newpos +8]))
                 AdvertisingRouter = (inet_ntoa(data[newpos + 8:newpos +12]))
                 LSSeqNum = IPtoDec(inet_ntoa(data[newpos + 12:newpos +16]))
@@ -275,7 +273,8 @@ def readPack(addr, data):
                     packet.receiveLSA(newNetworkLSA)
 
                 if LSType == 3:     # Summary-LSA (IP Network)
-                    pass
+                    packet.receiveLSA(SummaryLSA(addr[0], LSAge, Options, LSType, LSID, AdvertisingRouter, LSSeqNum,
+                                               LSChecksum, Length, '255.255.255.0', 0))
 
                 if LSType == 4:     # Summary-LSA (ASBR)
                     print "Read of ASBR Summary LSA not done"
@@ -287,7 +286,7 @@ def readPack(addr, data):
 
                 if LSType == 11: #Opaque-LSA - AS flooding
 
-                    opaquetype = int(str(td(data[newpos+4])), 16)
+                    opaquetype = td(data[newpos+4])
                     id1 = str(hex(td(data[newpos + 5])))
                     id2 = str(hex(td(data[newpos + 6])))
                     id3 = str(hex(td(data[newpos + 7])))

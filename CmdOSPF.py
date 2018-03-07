@@ -1,4 +1,5 @@
 import cmd
+import os
 import threading
 from operator import itemgetter
 from socket import *
@@ -62,19 +63,11 @@ class cmdOSPF(cmd.Cmd):
         """to stop reading a file"""
         return True
 
-    def do_exit(self, line):
-        """exit from OSPF"""
-        print "Bye!"
-        return True
-
-    def do_quit(self, line):
-        """the same as exit"""
-        print "Bye!"
-        return True
 
     def do_bye(self, line):
         """the same as exit"""
         print "Bye!"
+        self.realRoutingTable.RemoveEntriesonKernelRT()
         return True
 
     def do_lsdb(self, line):
@@ -97,6 +90,7 @@ class cmdOSPF(cmd.Cmd):
         """interface [name interface] [area] [cost]"""
         print "Add interface to OSPF"
         inter, area, cost = line.split()
+
         cost = int(cost)
         intadd = utils.getIPofInterface(inter)
         type = utils.getTypeofInterface(inter)
@@ -120,8 +114,6 @@ class cmdOSPF(cmd.Cmd):
             interface_obj = self.getInterfaceByName(interface_name)
             if interface_name == 0 or interface_obj==None or packet==0:
                 continue
-            if packet.getType() == 11:
-                    self.receiveLSAtoLSDB(packet.getReceivedLSAs()[0], 'ABR')
             interface_obj.packetReceived(packet)
             
     def unicastReceiver(self, interfaceaddr, type, timeout):
@@ -351,3 +343,30 @@ class cmdOSPF(cmd.Cmd):
             return routes
         else:
             return False
+
+    def startThreadUnicast(self, interface):
+        self.thread = threading.Thread(target=self.allwaysUnicast, args=[interface])
+        self.thread.daemon = True
+        self.thread.start()
+
+    def allwaysUnicast(self, interface):
+        PROTO = 89
+        bufferSize = 1500
+
+        s = socket(AF_INET, SOCK_RAW, PROTO)
+        s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        while True:
+            s.bind((interface, PROTO))
+            try:
+                data, addr = s.recvfrom(bufferSize)
+                packet = mcast.readPack(addr, data)
+                interfaceName = utils.getInterfaceByIP(interface)
+                interface_obj = self.getInterfaceByName(interfaceName)
+                if interface == 0 or interface_obj == None or packet == 0:
+                    continue
+                interface_obj.packetReceived(packet)
+            except Exception:
+                pass
+
+
+

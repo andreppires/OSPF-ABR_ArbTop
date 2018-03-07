@@ -317,6 +317,7 @@ class interface:
             pack = packet.getLSReqToSend()
             deliver(pack, self.IPInterfaceAddress, sourceRouter, False)
             self.TakeCareofLSUpdate()
+        self.routerclass.startThreadUnicast(self.IPInterfaceAddress)
 
     def TakeCareofLSUpdate(self):
         # Wait for master response
@@ -863,7 +864,8 @@ class interface:
 
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
-            self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
+            if x.getLSType() != 3:
+                self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)

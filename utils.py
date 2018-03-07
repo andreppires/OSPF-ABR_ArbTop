@@ -75,6 +75,7 @@ def getNetworkfromIPandMask(ip, mask):
     network = DectoIP(ipaddr & netmask)
     return network
 
+
 def getNetworkIP(ipadd, netmask):
     splitted = ipadd.split('.')
     if netmask == '255.255.255.0':
@@ -82,6 +83,7 @@ def getNetworkIP(ipadd, netmask):
     if netmask == '255.255.0.0':
         return splitted[0] + '.' + splitted[1] + '.0.0'
     print "Netmask not supported!"
+
 
 def calcDottedNetmask(mask):
     return sum([bin(int(x)).count('1') for x in mask.split('.')])

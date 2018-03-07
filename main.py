@@ -12,7 +12,6 @@ def main():
     bashCommand = "sysctl -w net.ipv4.ip_forward=1"
     os.system(bashCommand)
 
-    print "Firewall services stopped"
     ### Read configuration files ###
     f = open('./configs/routerID', 'r')             #routerID
     routerID=f.readline()
