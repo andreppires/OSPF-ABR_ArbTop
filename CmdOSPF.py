@@ -53,6 +53,8 @@ class cmdOSPF(cmd.Cmd):
         self.threadInc = threading.Thread(target=self.incrementLSATimer, args=())
         self.threadInc.daemon = True
         self.threadInc.start()
+        self.threadABR = False
+        self.ABR = False
 
         self.threadUnicast = {}
 
@@ -176,8 +178,10 @@ class cmdOSPF(cmd.Cmd):
         if area in self.LSDB:
             if len(self.LSDB) > 1:
                 rlsa.setBbit(True)
-                self.threadforAbrLsdbStart()
-            self.LSDB[area][0].receiveLSA(rlsa)
+                if self.ABR == False:
+                    self.updateOurRouterLSAsTOABR(area)
+                if self.threadABR == True:
+                    self.threadforAbrLsdbStart()
         else:
             if area != 'ABR':
                 x = [LSDB(area, self), 0]
@@ -186,11 +190,23 @@ class cmdOSPF(cmd.Cmd):
             self.LSDB[area] = x
             if len(self.LSDB) > 1:
                 rlsa.setBbit(True)
-                self.threadforAbrLsdbStart()
+                if self.ABR == False:
+                    self.updateOurRouterLSAsTOABR(area)
+                if self.threadABR == False:
+                    self.threadforAbrLsdbStart()
 
-            self.LSDB[area][0].receiveLSA(rlsa)
+        self.LSDB[area][0].receiveLSA(rlsa)
+
+    def updateOurRouterLSAsTOABR(self, area):
+        self.ABR = True
+        for x in self.LSDB:
+            if x == 'ABR' or x == area:
+                continue
+            self.createLSA(x, self.RouterID, False)
+
 
     def threadforAbrLsdbStart(self):
+        self.threadABR = True
         t = threading.Thread(target=self.createLSDBforABROverlay, args=())
         t.daemon = True
         t.start()
@@ -202,6 +218,7 @@ class cmdOSPF(cmd.Cmd):
             self.createASBRLSAs()
             self.createPrefixLSAs()
         self.createABRLSA()
+        return
 
     def createABRLSA(self):
 
@@ -215,9 +232,11 @@ class cmdOSPF(cmd.Cmd):
             if x == 'ABR':
                 continue
             N = self.LSDB[x][0].getNeighbordABR(self.RouterID)
+            print "NNNNN:", N
             for y in N:
                 ABRNeighbords.append(y)
 
+        print "OLEEEE",ABRNeighbords
         # add them
         for x in ABRNeighbords:
             lsa.addLinkDataEntry(x)
@@ -353,7 +372,7 @@ class cmdOSPF(cmd.Cmd):
             self.threadUnicast[interface] = threading.Thread(target=self.allwaysUnicast,
                                                              args=[interface])
             self.threadUnicast[interface].daemon = True
-        self.threadUnicast[interface].start()
+            self.threadUnicast[interface].start()
 
     def allwaysUnicast(self, interface):
         PROTO = 89
