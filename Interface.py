@@ -124,13 +124,15 @@ class interface:
         self.routerclass.receiveLSAtoLSDB(newNLSA, self.AreaID)
         self.LSATimer = 60*30
 
-    def packetReceived(self, packet):
+    def packetReceived(self, packet, multi):
         if packet.getType() == 1:
             self.readHello(packet)
+        if packet.getType() == 2:
+            self.startDDProcess()
         if packet.getType() == 3:
             pass #TODO Link State Request
         if packet.getType() == 4:
-            self.readLSUpdate(packet)
+            self.readLSUpdate(packet, multi)
         if packet.getType() == 5:
             pass #TODO Read Link State ACK
 
@@ -328,16 +330,15 @@ class interface:
         pack = LinkStateAcknowledgmentPacket(self.IPInterfaceAddress, 2, 5,
                                              self.RouterID, self.AreaID, 0, 0, 0, 0)
         LSAs = packetReceived.getReceivedLSAs()
-
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
-            self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
+            if x.getLSType() != 3:
+                self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), self.IPInterfaceAddress, sourceRouter, False)
 
     def TakeCareofLSRequest(self):
-
 
         pack = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 3, True)
 
@@ -854,7 +855,7 @@ class interface:
         else:
             self.TypeofInterface = 2    # Transit Network
 
-    def readLSUpdate(self, packet):
+    def readLSUpdate(self, packet, multi):
         LSAs = packet.getReceivedLSAs()
         sourceRouter = packet.getSourceRouter()
 
@@ -864,8 +865,14 @@ class interface:
 
         for x in LSAs:
             pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
+            if x.getLSType() == 11:
+                print 'Interface: OpaqueID=', x.getOpaqueID(), 'ADVRouter=', x.getADVRouter()
+                self.routerclass.receiveLSAtoLSDB(x, 'ABR')
             if x.getLSType() != 3:
                 self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
 
         # send  LS-ACK
         deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, True)
+        # else:
+        #    deliver(pack.getLSACKToSend(), [self.IPInterfaceAddress], sourceRouter, False)
+

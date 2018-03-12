@@ -214,22 +214,26 @@ def readPack(addr, data):
             LS3 = str(hex(td(data[pos + 26])))
             LS4 = str(hex(td(data[pos + 27])))
             NLSAs = int(LS1 + LS2[2:] + LS3[2:] + LS4[2:], 16)
+            print NLSAs
 
             # create LSUpdate
             packet = LinkStateUpdatePacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
-                               authentication1, authentication2, NLSAs)
+                                           authentication1, authentication2, NLSAs)
 
             newpos = pos + 28
 
             for x in range(0,NLSAs): #Read the LSAs
-                LSAge = td(data[newpos]) + td(data[newpos+1])
+                LSAge = int(str(hex(td(data[newpos]))) + str(hex(td(data[newpos+1])))[2:], 16)
                 Options = td(data[newpos+2])
                 LSType = td(data[newpos+3])
                 LSID = (inet_ntoa(data[newpos + 4:newpos +8]))
                 AdvertisingRouter = (inet_ntoa(data[newpos + 8:newpos +12]))
                 LSSeqNum = IPtoDec(inet_ntoa(data[newpos + 12:newpos +16]))
-                LSChecksum = int(str(hex(td(data[newpos + 16]))) + str(hex(td(data[newpos+17])))[2:],16)
+                a = (td(data[newpos + 16]))
+                b = (td(data[newpos + 17]))
+                LSChecksum = chr(a)+chr(b)
                 Length = int(str(hex(td(data[newpos + 18]))) + str(hex(td(data[newpos+19])))[2:] ,16)
+
 
                 if LSType == 1: # Router-LSA
                     VEB = td(data[newpos+20])
@@ -257,7 +261,7 @@ def readPack(addr, data):
                         ListLinks.append([LinkID, LinkData, LinkType, NMetrics, Metric0])
                         position += 12
                     newRouterLSA = RouterLSA(addr[0], LSAge, Options, LSType, LSID, AdvertisingRouter, LSSeqNum,
-                                             LSChecksum, Length, V, E, B, Nlinks, ListLinks)
+                                         LSChecksum, Length, V, E, B, Nlinks, ListLinks)
                     packet.receiveLSA(newRouterLSA)
 
                 if LSType == 2:     # Network-LSA
@@ -274,7 +278,7 @@ def readPack(addr, data):
 
                 if LSType == 3:     # Summary-LSA (IP Network)
                     packet.receiveLSA(SummaryLSA(addr[0], LSAge, Options, LSType, LSID, AdvertisingRouter, LSSeqNum,
-                                               LSChecksum, Length, '255.255.255.0', 0))
+                                                 LSChecksum, Length, '255.255.255.0', 0))
 
                 if LSType == 4:     # Summary-LSA (ASBR)
                     print "Read of ASBR Summary LSA not done"
@@ -291,12 +295,11 @@ def readPack(addr, data):
                     id2 = str(hex(td(data[newpos + 6])))
                     id3 = str(hex(td(data[newpos + 7])))
                     opaqueid = int(id1 + id2[2:] + id3[2:], 16)
-                    print "recebi opaque LSA com opaquetype =", opaquetype, "e com opaqueid =", opaqueid
-
+                    print 'mcast: OpaqueID=', opaqueid, 'ADVRouter=',AdvertisingRouter
                     if opaquetype == 20: #ABR-LSA
                         NNeigh = (packet_lenght - 44) / 8
 
-                        packet = ABRLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter, LSSeqNum,
+                        newlsa = ABRLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter, LSSeqNum,
                                         LSChecksum, Length)
 
                         for x in NNeigh:
@@ -304,9 +307,8 @@ def readPack(addr, data):
                                          + str(hex(td(data[newpos + x*8 + 10])))[2:] + str(hex(td(data[newpos + x*8 +
                                                                                                        11])))[2:], 16)
                             NeighborID = (inet_ntoa(data[newpos + x*8 + 12:newpos +x*8 + 16]))
-                            packet.addLinkDataEntry(Metric, NeighborID)
-
-
+                            newlsa.addLinkDataEntry([NeighborID,Metric])
+                        packet.receiveLSA(newlsa)
 
                     if opaquetype == 21: #Prefix-LSA
                         Metric = int(str(hex(td(data[newpos + 8]))) + str(hex(td(data[newpos+9])))[2:] +
@@ -314,18 +316,18 @@ def readPack(addr, data):
                         SubnetMask = (inet_ntoa(data[newpos + 12:newpos +16]))
                         SubnetPrefix = (inet_ntoa(data[newpos + 16:newpos +20]))
 
-                        packet = PrefixLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter,
+                        newlsa = PrefixLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter,
                                            LSSeqNum, LSChecksum, Length, Metric, SubnetMask, SubnetPrefix)
-
+                        packet.receiveLSA(newlsa)
 
                     if opaquetype == 22: #ASBR-LSA
                         Metric = int(str(hex(td(data[newpos + 8]))) + str(hex(td(data[newpos + 9])))[2:] +
                                      str(hex(td(data[newpos + 10])))[2:] + str(hex(td(data[newpos + 11])))[2:], 16)
                         DestinationRID = (inet_ntoa(data[newpos + 12:newpos + 16]))
 
-                        packet = ASBRLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter,
-                                           LSSeqNum, LSChecksum, Length, Metric, DestinationRID)
-
+                        newlsa = ASBRLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter,
+                                         LSSeqNum, LSChecksum, Length, Metric, DestinationRID)
+                        packet.receiveLSA(newlsa)
 
                 newpos += Length
             return packet

@@ -28,6 +28,7 @@ LS_ACKNOWLEDGE = '05'
 
 BUFSIZE = 1024
 
+
 class cmdOSPF(cmd.Cmd):
     """Simple command processor for OSPF."""
 
@@ -49,9 +50,11 @@ class cmdOSPF(cmd.Cmd):
         self.thread.daemon = True
         self.thread.start()
 
-        self.thread = threading.Thread(target=self.incrementLSATimer, args=())
-        self.thread.daemon = True
-        self.thread.start()
+        self.threadInc = threading.Thread(target=self.incrementLSATimer, args=())
+        self.threadInc.daemon = True
+        self.threadInc.start()
+
+        self.threadUnicast = {}
 
         return cmd.Cmd.cmdloop(self)
 
@@ -62,7 +65,6 @@ class cmdOSPF(cmd.Cmd):
     def do_EOF(self, line):
         """to stop reading a file"""
         return True
-
 
     def do_bye(self, line):
         """the same as exit"""
@@ -76,7 +78,7 @@ class cmdOSPF(cmd.Cmd):
     def do_graph(self, line):
         self.LSDB[line][0].printGraph()
 
-    def do_list(self,line):
+    def do_list(self, line):
         """list interfaces"""
         print utils.getAllInterfaces()
 
@@ -96,10 +98,9 @@ class cmdOSPF(cmd.Cmd):
         type = utils.getTypeofInterface(inter)
         netmask = utils.getNetMaskofInterface(inter)
 
-
         self.setInterface(interface(type, intadd, netmask, area, self.HelloInterval,
                                     self.RouterDeadInterval, self.IntTransDelay, self.RouterPriority,
-                                    self.RouterID, self, cost), inter,self.RouterID, area)
+                                    self.RouterID, self, cost), inter, self.RouterID, area)
 
     def multicastReceiver(self):
         MCAST_GROUP = '224.0.0.5'
@@ -112,10 +113,10 @@ class cmdOSPF(cmd.Cmd):
             interface_name = self.WhatInterfaceReceivedthePacket(addr[0])
             packet = mcast.readPack(addr, data)
             interface_obj = self.getInterfaceByName(interface_name)
-            if interface_name == 0 or interface_obj==None or packet==0:
+            if interface_name == 0 or interface_obj == None or packet == 0:
                 continue
-            interface_obj.packetReceived(packet)
-            
+            interface_obj.packetReceived(packet, True)
+
     def unicastReceiver(self, interfaceaddr, type, timeout):
         PROTO = 89
         bufferSize = 1500
@@ -139,28 +140,28 @@ class cmdOSPF(cmd.Cmd):
 
     def StartInterfacesList(self):
         for x in utils.getAllInterfaces():
-            self.listInterfaces.append({'interface-name':x, 'ip':utils.getIPofInterface(x),
-                                        'netmask':utils.getNetMaskofInterface(x), 'interface-object': None})
+            self.listInterfaces.append({'interface-name': x, 'ip': utils.getIPofInterface(x),
+                                        'netmask': utils.getNetMaskofInterface(x), 'interface-object': None})
 
-    def setInterface(self, object_interface , interface_name, rid, area):
+    def setInterface(self, object_interface, interface_name, rid, area):
         for x in self.listInterfaces:
-            if x['interface-name']==interface_name:
-                x['interface-object']=object_interface
-                x['interface-area']=area
+            if x['interface-name'] == interface_name:
+                x['interface-object'] = object_interface
+                x['interface-area'] = area
 
         self.createLSA(area, rid, False)
 
     def createLSA(self, area, rid, sn):
         # create/Update RouterLSA
-        linkdata=[]
+        linkdata = []
         for x in self.listInterfaces:
             if x['interface-object'] != None and x['interface-object'].getArea() == area:
                 typeLink = x['interface-object'].getTypeLink()
-                if typeLink == 2:   # transit network
+                if typeLink == 2:  # transit network
                     linkdata.append([x['interface-object'].getDR(), x['interface-object'].getIPIntAddr(), typeLink,
                                      0, x['interface-object'].getMetric()])
                 else:
-                    if typeLink == 3:   # stub
+                    if typeLink == 3:  # stub
                         networkIP = utils.getNetworkIP(x['interface-object'].getIPIntAddr(), x['interface-object'].
                                                        getIPInterfaceMask())
                         linkdata.append([networkIP, x['interface-object'].getIPInterfaceMask(),
@@ -168,12 +169,12 @@ class cmdOSPF(cmd.Cmd):
                     else:
                         "Error creating LSA. Link Type not supported"
         if sn == False:
-            rlsa = RouterLSA(None, 0,2,1,rid, rid, 0, 1, 0, 0, 0, 0, len(linkdata), linkdata)
+            rlsa = RouterLSA(None, 0, 2, 1, rid, rid, 0, 1, 0, 0, 0, False, len(linkdata), linkdata)
         else:
-            rlsa = RouterLSA(None, 0, 2, 1, rid, rid, sn, 1, 0, 0, 0, 0, len(linkdata), linkdata)
+            rlsa = RouterLSA(None, 0, 2, 1, rid, rid, sn, 1, 0, 0, 0, False, len(linkdata), linkdata)
 
         if area in self.LSDB:
-            if len(self.LSDB)>1:
+            if len(self.LSDB) > 1:
                 rlsa.setBbit(True)
                 self.threadforAbrLsdbStart()
             self.LSDB[area][0].receiveLSA(rlsa)
@@ -183,7 +184,7 @@ class cmdOSPF(cmd.Cmd):
             else:
                 x = [ABRLSDB(area, self), 0]
             self.LSDB[area] = x
-            if len(self.LSDB)>1:
+            if len(self.LSDB) > 1:
                 rlsa.setBbit(True)
                 self.threadforAbrLsdbStart()
 
@@ -214,8 +215,8 @@ class cmdOSPF(cmd.Cmd):
             if x == 'ABR':
                 continue
             N = self.LSDB[x][0].getNeighbordABR(self.RouterID)
-            if len(N) > 0:
-                ABRNeighbords.append(N)
+            for y in N:
+                ABRNeighbords.append(y)
 
         # add them
         for x in ABRNeighbords:
@@ -229,7 +230,7 @@ class cmdOSPF(cmd.Cmd):
     def createASBRLSAs(self):
         # Get ASBRs Routers
         for x in self.LSDB:
-            if x == 'ABR': # special LSDB
+            if x == 'ABR':  # special LSDB
                 continue
             for y in self.LSDB[x][0].getAsbrRouterLSAS(self.RouterID):
                 # create PrefixLSA for every NetworkLSA
@@ -239,9 +240,9 @@ class cmdOSPF(cmd.Cmd):
                 self.LSDB['ABR'][0].receiveLSA(lsa)
 
     def getActiveAreas(self):
-        out =[]
+        out = []
         for x in self.LSDB:
-            if x == 'ABR': # special LSDB
+            if x == 'ABR':  # special LSDB
                 continue
             out.append(x)
         return out
@@ -257,7 +258,7 @@ class cmdOSPF(cmd.Cmd):
                     self.createLSA(self.LSDB[x][0].getArea(), self.RouterID, False)
                     self.LSDB[x][1] = 0
                 else:
-                    self.LSDB[x][1] = self.LSDB[x][1]+1
+                    self.LSDB[x][1] = self.LSDB[x][1] + 1
             sleep(1)
 
     def WhatInterfaceReceivedthePacket(self, sourceIP):
@@ -270,9 +271,11 @@ class cmdOSPF(cmd.Cmd):
         for x in range(len(self.listInterfaces)):
             if self.listInterfaces[x]['interface-name'] == interface_name:
                 return self.listInterfaces[x]['interface-object']
-        return 0 #error
+        return 0  # error
 
     def receiveLSAtoLSDB(self, lsa, area):
+        if area not in self.LSDB:
+            return 0
         self.LSDB[area][0].receiveLSA(lsa)
 
     def getLSDB(self, areaid):
@@ -305,7 +308,6 @@ class cmdOSPF(cmd.Cmd):
         else:
             self.fakeRoutingTable.receiveEntries(routes)
 
-
     def createPrefixLSA(self, prefix, cost, netmask):
         opaqueID = self.getOpaqueID()
         lsa = PrefixLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0,
@@ -326,12 +328,12 @@ class cmdOSPF(cmd.Cmd):
     def getbestpathtoABR(self, abr):
         entries = []
         for x in self.LSDB:
-            if x=='ABR':
+            if x == 'ABR':
                 continue
-            data =self.LSDB[0].getPathtoDestination(abr)
+            data = self.LSDB[0].getPathtoDestination(abr)
             if data is not False:
                 entries.append(data)
-        if len(entries)>0:
+        if len(entries) > 0:
             routes = []
             entries = sorted(entries, key=itemgetter('cost'))
             leastcost = entries[0]['cost']
@@ -345,9 +347,13 @@ class cmdOSPF(cmd.Cmd):
             return False
 
     def startThreadUnicast(self, interface):
-        self.thread = threading.Thread(target=self.allwaysUnicast, args=[interface])
-        self.thread.daemon = True
-        self.thread.start()
+        if interface in self.threadUnicast:
+            return
+        else:
+            self.threadUnicast[interface] = threading.Thread(target=self.allwaysUnicast,
+                                                             args=[interface])
+            self.threadUnicast[interface].daemon = True
+        self.threadUnicast[interface].start()
 
     def allwaysUnicast(self, interface):
         PROTO = 89
@@ -364,9 +370,6 @@ class cmdOSPF(cmd.Cmd):
                 interface_obj = self.getInterfaceByName(interfaceName)
                 if interface == 0 or interface_obj == None or packet == 0:
                     continue
-                interface_obj.packetReceived(packet)
+                interface_obj.packetReceived(packet, False)
             except Exception:
                 pass
-
-
-
