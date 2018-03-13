@@ -1,66 +1,149 @@
-import struct
-
-import utils
-from LSAs.HeaderOpaqueLSA import HeaderOpaqueLSA
-
-OSPF_LSA_ABR = "> L L" #Link Data struct
-OSPF_LSA_ABR_LEN = struct.calcsize(OSPF_LSA_ABR)
-
-class ABRLSA(HeaderOpaqueLSA):
-    def __init__(self,sourceR, lsage, opt, opaqueID, advert, lsNumber, ck, lg):
-        HeaderOpaqueLSA.__init__(self, sourceR, lsage, opt, 20, opaqueID, advert, lsNumber, ck, lg)
-
-        self.LinkData = []  # [IPVizinho, Metrica]
+from Deliver import deliver
+from Dijkstra import shortestPathCalculator
+from LSDB import LSDB
+from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
+from utils import getIPofInterface
 
 
-    def getLinkData(self):
-        return self.LinkData
+class ABRLSDB(LSDB):
 
-    def addLinkDataEntry(self, entry):
-        self.LinkData.append(entry)
+    def __init__(self, area, routerclass):
+        LSDB.__init__(self, area, routerclass)
 
-    def removeLinkDataEntry(self, entry):
-        self.LinkData.remove(entry)
+    def removeLSA(self, LSType, LSID, LSAdvRouter, flush):
+        for x in self.LSAs:
+            if x.getLSType() == LSType and x.getLSID() == LSID  and x.getADVRouter() == LSAdvRouter:
+                if flush:
+                    x.setMaxAge()
+                    self.FlushLSA(x)
+                self.LSAs.remove(x)
+                return x
+        return False
 
-    def printLSA(self):
-        print "##### ABR-LSA id:", self.OpaqueID
-        print "ADV Router:", self.getADVRouter(), "\tNeighbors count:", len(self.LinkData)
+    def receiveLSA(self, lsa):
+        # print 'ABRLSDB: OpaqueID=', lsa.getOpaqueID(), 'ADVRouter=', lsa.getADVRouter()
+        exist = self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), lsa.getOpaqueType(), lsa)
+        if exist is not False:
+            if lsa.getADVRouter == self.routerClass.getRouterID():
+                if lsa.getSeqNumber() > self.getLSA(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter()).getSeqNumber():
+                    self.routerClass.createLSA(self.Area, self.routerClass.getRouterID(), lsa.getSewNumber + 1)
+            x = exist[1]
+            self.LSAs.remove(x)
+            lsa.setNextSN(x.getSeqNumber())
+            lsa.setOpaqueID(x.getOpaqueID())
+        lsa.calculateChecksum()
+        self.LSAs.append(lsa)
+        self.FlushLSA(lsa)
+        self.constructgraph()
+        self.recalculateshortestPaths()
 
-    def calculateLength(self, ck):
+    def recalculateshortestPaths(self):
+        leastcostpathroutes = []
+        visited = []
+        rid = self.routerClass.getRouterID()
+        for x in self.LSAs:
+            if x.getOpaqueType() == 20: #ABR LSA
+                visited.append(x)
+                continue
+            if x.getOpaqueType() == 21: #Prefix LSA
+                bestchoice = x
+                visited.append(x)
+                destination = x.getSubnetAddress()
+                netmask = x.getSubnetMask()
+                try:
+                    cost = x.getMetric() + \
+                           shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
+                except:
+                    pass
+                for y in self.LSAs:
+                    if y not in visited:
+                        visited.append(y)
+                        if y.getOpaqueType() == 21:
+                            if y.getSubnetAddress() == destination and y.getSubnetMask() == netmask:
+                                thisCost = y.getMetric() + shortestPathCalculator(self.graph, rid, y.getADVRouter())
+                                if thisCost < cost:
+                                    bestchoice = y
+                                    cost = thisCost
+                aux = {}
+                aux['destination'] = destination
+                aux['cost'] = cost
+                aux['path'] = bestchoice.getADVRouter()
+                aux['netmask'] = netmask
+                leastcostpathroutes.append(aux)
 
-        hdlen = self.getLengthHeader(ck)
-        netlen = (OSPF_LSA_ABR_LEN * len(self.LinkData))
-        self.setLength(hdlen+netlen, ck)
-        return hdlen+netlen
+            self.routerClass.setNewRoutes(leastcostpathroutes, True)
 
-    def packABRLSA(self):
+    def createSummaryLSA(self, lsa):
+        lsid = lsa.getSubnetAddress()
+        subnetmask = lsa.getSubnetMask()
+        metric = lsa.getMetric()
+        rid = self.routerClass.getRouterID()
+        try:
+            extraCost = shortestPathCalculator(self.graph, rid, lsa.getADVRouter())
+            metric += extraCost
+        except:
+            pass
+        self.routerClass.createSummaryLSAfromPrefixLSA(lsid, subnetmask, metric)
 
-        pack = ''
-        for x in self.LinkData:
-            pack = pack + struct.pack(OSPF_LSA_ABR_LEN, utils.IPtoDec(x[0]), (x[1]))
-        return pack
+    def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
+        if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA
+            for x in self.LSAs:
+                if x.getLSType() == LSType and x.getLSID() == LSID  and x.getOpaqueType() == opaquetype and \
+                                x.getADVRouter() == LSAdvRouter:
+                    return [True, x]
+            return False
+        else:   # our LSA
+            if opaquetype == 20:
+                # vamos atualizar o meu ABR lsa
+                for x in self.LSAs:
+                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
+                                    x.getADVRouter() == LSAdvRouter:
+                        return [True, x]
+                return False
+            if opaquetype == 21:
+                # vamos atualizar um Prefix lsa meu
+                for x in self.LSAs:
+                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
+                                    x.getADVRouter() == LSAdvRouter:
+                        if x.getSubnetMask() == lsa.getSubnetMask() and \
+                                        x.getSubnetAddress() == lsa.getSubnetAddress():
+                            return [True, x]
+                return False
+            if opaquetype == 22:
+                # vamos atualizar um ASBR lsa meu
+                for x in self.LSAs:
+                    if x.getLSType() == LSType and x.getOpaqueType() == opaquetype and \
+                                    x.getADVRouter() == LSAdvRouter:
+                        if x.getDestinationRID() == lsa.getDestinationRID():
+                            return [True, x]
+                return False
 
-    def calculateChecksum(self):
-        lg = self.calculateLength(True)
+    def FlushLSA(self, lsa): #flush means send for all interfaces.
+        pack = LinkStateUpdatePacket(None, 2, 4, self.routerClass.getRouterID(), self.Area,
+                                     0, 0, 0, 0 ,1)
+        pack.receiveLSA(lsa)
+        packed = pack.getPackLSUPD()
+        sourceRouter = lsa.getSource()
 
-        pack = self.packABRLSA()
+        activeAreas = self.routerClass.getActiveAreas()
+        for x in activeAreas:
+            if sourceRouter == None:
+                # pacote nosso. Envia para todas as interfaces ativas
+                interfaces = self.routerClass.getInterfaceIPExcept(x)
+            else:
+                # pacote nao e nosso. Envia para todas as interfaces ativas excepto a referente a esta.
+                sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
+                interfaces = self.routerClass.getInterfaceIPExcept(x)
+                sourceInterface = getIPofInterface(sourceInterface)
+                interfaces.remove(sourceInterface)
+            if len(interfaces) != 0:
+                deliver(packed, interfaces, None, True)
 
-        structn = self.getHeaderPack() + pack
-
-        checkum = utils.fletcher(structn, 16, lg)
-        self.setChecksum(checkum)
-        return 0
-
-    def printaTudoo(self):
-        print "Links Data:", self.LinkData
-
-    def getLSAtoSend(self, ):
-        pack = self.packABRLSA()
-        return [self.getHeaderPack() + pack, self.getLength()]
-
-    def getDicOfNeighbors(self):
-        out ={}
-        for x in self.LinkData:
-            out[x[0]] = x[1]
-        return out
-
+    def constructgraph(self):
+        G = {}
+        for x in self.LSAs:
+            if x.getLSType() == 11 and x.getOpaqueType() == 20:    # ABR-LSA
+                RID = x.getADVRouter()
+                Neigh = x.getDicOfNeighbors()
+                G[RID] = Neigh
+        self.graph = G

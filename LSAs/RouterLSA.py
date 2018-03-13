@@ -18,10 +18,9 @@ class RouterLSA(LSAHeader):
         self.LinksData = linksData
 
     def printLSA(self):
-        print "Router LSA:"
-        print "Link ID          ADV Router      Age     Seq#        Link count"
-        print self.getLSID(),"      ",self.getADVRouter(),"      ",self.getAge(),\
-            "      ", self.getSeqNumber(),"      ", len(self.LinksData)
+        print "Router LSA:  ABR?     ADV Router   Age     Seq#        Link count"
+        print "            ",self.getBbit(),"   ",self.getADVRouter(),"    ",self.getAge(),\
+            "   ", self.getSeqNumber(),"      ", len(self.LinksData)
 
     def calculateLength(self, ck):
 

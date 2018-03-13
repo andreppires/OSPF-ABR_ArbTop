@@ -8,17 +8,17 @@ OSPF_LSA_NETWORK_LEN = struct.calcsize(OSPF_LSA_NETWORK)
 
 
 class NetworkLSA(LSAHeader):
-    def __init__(self, sourceR, lsage, opt, lstype, lsid, advert, lsNumber, ck, lg, netmasks, listrouters):
+    def __init__(self, sourceR, lsage, opt, lstype, lsid, advert, lsNumber, ck,
+                 lg, netmasks, listrouters):
         self.NetworkMask = netmasks
         self.attachedRouter = listrouters
         LSAHeader.__init__(self, sourceR,lsage, opt, lstype, lsid, advert, lsNumber, ck, lg)
 
 
     def printLSA(self):
-        print "Network LSA:"
-        print "Link ID          ADV Router      Age     Seq#        Link count"
-        print self.getLSID(), "      ", self.getADVRouter(), "      ", self.getAge(), "      ",\
-            self.getSeqNumber(), "      ", len(self.attachedRouter)
+        print "Network LSA: Link ID     ADV Router    Age   Seq#      Link count"
+        print "            ",self.getLSID(), " ", self.getADVRouter(), "    ", self.getAge(), "    ",\
+            self.getSeqNumber(), "    ", len(self.attachedRouter)
 
     def calculateLength(self, ck):
         hdlen = self.getLengthHeader(ck)

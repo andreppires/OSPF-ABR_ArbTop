@@ -110,7 +110,7 @@ class interface:
                 self.sendHello()
                 self.resetHelloTimer()
             if self.LSATimer == 0 and self.havetoNLSA():
-                self.createNLSA()
+                self.createNLSA(0, False)
 
     def havetoNLSA(self):
         if self.DesignatedRouter == self.IPInterfaceAddress and len(self.Neighbours)>0:
@@ -118,11 +118,15 @@ class interface:
         else:
             return False
 
-    def createNLSA(self):
+    def createNLSA(self, sn, maxAge):
         N = self.getNeighbords()
         N.append(self.RouterID)
-        newNLSA = NetworkLSA(None, 0,2,2,self.IPInterfaceAddress,self.RouterID, 0, 0, 0,
-                             self.IPInterfaceMask, N)
+        if maxAge:
+            age = 3600
+        else:
+            age = 0
+        newNLSA = NetworkLSA(None, age, 2, 2, self.IPInterfaceAddress, self.RouterID, sn, 0, 0,
+                                 self.IPInterfaceMask, N)
         self.routerclass.receiveLSAtoLSDB(newNLSA, self.AreaID)
         self.LSATimer = 60*30
 
@@ -155,7 +159,7 @@ class interface:
                                                                       packet.Options, packet.DesignatedRouter,
                                                                       packet.BackupDesignatedRouter)})
                 if self.havetoNLSA():
-                    self.createNLSA()
+                    self.createNLSA(0, False)
                     self.routerclass.createLSA(self.AreaID, self.RouterID, False)
 
                 th = threading.Thread(target=self.startDDProcess, args=())
@@ -809,7 +813,7 @@ class interface:
         # Update LSAs
         self.TypeofInterfaceChange()
         if self.havetoNLSA():
-            self.createNLSA()
+            self.createNLSA(0, False)
         self.routerclass.createLSA(self.AreaID, self.RouterID, False)
 
         # Backup Designated Router Updated

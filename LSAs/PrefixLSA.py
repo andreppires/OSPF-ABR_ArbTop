@@ -52,5 +52,3 @@ class PrefixLSA(HeaderOpaqueLSA):
     def getLSAtoSend(self):
         pack = self.packPrefixLSA()
         return self.getHeaderPack() + pack, self.getLength()
-
-

@@ -61,7 +61,18 @@ class LSDB:
     def receiveLSA(self, lsa):
         if self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), None, None):
             x = self.removeLSA(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), False)
-            lsa.setNextSN(x.getSeqNumber())
+            if lsa.getSource() != None and \
+                            lsa.getADVRouter() == self.routerClass.getRouterID() and \
+                            lsa.getSeqNumber() > x.getSeqNumber():
+                if lsa.getLSType() == 1:
+                    self.routerClass.createLSA(self.Area, self.routerClass.getRouterID(),
+                                               lsa.getSeqNumber() +1)
+                    return
+                if lsa.getLSType() == 2:
+                    self.routerClass.AlertToCreateNetworkLSA(lsa.getLSID(),
+                                                             lsa.getSeqNumber() +1)
+                    returbyen
+
         lsa.calculateChecksum()
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)

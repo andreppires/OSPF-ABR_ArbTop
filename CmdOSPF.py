@@ -392,3 +392,11 @@ class cmdOSPF(cmd.Cmd):
                 interface_obj.packetReceived(packet, False)
             except Exception:
                 pass
+
+    def AlertToCreateNetworkLSA(self, lsid, sn):
+        interface = self.WhatInterfaceReceivedthePacket(lsid)
+        interface_obj = self.getInterfaceByName(interface)
+        if interface_obj.havetoNLSA():
+            interface_obj.createNLSA(sn, False)
+        else:
+            interface_obj.createNLSA(sn, True)
