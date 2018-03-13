@@ -119,8 +119,10 @@ class interface:
             return False
 
     def createNLSA(self):
+        N = self.getNeighbords()
+        N.append(self.RouterID)
         newNLSA = NetworkLSA(None, 0,2,2,self.IPInterfaceAddress,self.RouterID, 0, 0, 0,
-                             self.IPInterfaceMask, self.getNeighbords())
+                             self.IPInterfaceMask, N)
         self.routerclass.receiveLSAtoLSDB(newNLSA, self.AreaID)
         self.LSATimer = 60*30
 

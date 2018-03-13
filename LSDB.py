@@ -34,7 +34,7 @@ class LSDB:
         while True:
             for x in self.LSAs:
                 if x.getAge() ==self.MaxAge:
-                    self.LSAs.remove(x)
+                    self.removeLSA(x.getLSType(), x.getLSID(), x.getADVRouter(), False)
                 else:
                     x.countAge()
                 sleep(1)
@@ -55,6 +55,7 @@ class LSDB:
                 self.constructgraph()
                 self.recalculateshortestPaths()
                 return x
+
         return False
 
     def receiveLSA(self, lsa):
@@ -157,8 +158,12 @@ class LSDB:
     def getNeighbordABR(self, rid):
         out = []
         for x in self.LSAs:
-            if x.getLSType == 1 and x.getBbit() is True and x.getADVRouter() != rid:
-                out.append(10, x.getADVRouter())    # TODO get cost to destination
+            if x.getLSType() == 1 and x.getBbit() is True and x.getADVRouter() != rid:
+                try:
+                    cost = shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
+                except TypeError:
+                    continue
+                out.append([cost, x.getADVRouter()])
         return out
 
     def getNetworkLSAs(self):
@@ -196,5 +201,3 @@ class LSDB:
             return shortestPathCalculator(self.graph, rid, abr)
         except:
             return False
-
-

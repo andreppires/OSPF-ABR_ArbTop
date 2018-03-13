@@ -214,7 +214,6 @@ def readPack(addr, data):
             LS3 = str(hex(td(data[pos + 26])))
             LS4 = str(hex(td(data[pos + 27])))
             NLSAs = int(LS1 + LS2[2:] + LS3[2:] + LS4[2:], 16)
-            print NLSAs
 
             # create LSUpdate
             packet = LinkStateUpdatePacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
