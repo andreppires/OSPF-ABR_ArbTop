@@ -1,8 +1,5 @@
-import threading
-
 from Deliver import deliver
 from Dijkstra import shortestPathCalculator
-from LSAs.SummaryLSA import SummaryLSA
 from LSDB import LSDB
 from OSPFPackets.LinkStateUpdatePacket import LinkStateUpdatePacket
 from utils import getIPofInterface
@@ -12,11 +9,6 @@ class ABRLSDB(LSDB):
 
     def __init__(self, area, routerclass):
         LSDB.__init__(self, area, routerclass)
-
-
-        self.thread = threading.Thread(target=self.run, args=())
-        self.thread.daemon = True
-        self.thread.start()
 
     def removeLSA(self, LSType, LSID, LSAdvRouter, flush):
         for x in self.LSAs:
@@ -29,6 +21,7 @@ class ABRLSDB(LSDB):
         return False
 
     def receiveLSA(self, lsa):
+        # print 'ABRLSDB: OpaqueID=', lsa.getOpaqueID(), 'ADVRouter=', lsa.getADVRouter()
         exist = self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), lsa.getOpaqueType(), lsa)
         if exist is not False:
             if lsa.getADVRouter == self.routerClass.getRouterID():
@@ -80,8 +73,6 @@ class ABRLSDB(LSDB):
 
             self.routerClass.setNewRoutes(leastcostpathroutes, True)
 
-
-
     def createSummaryLSA(self, lsa):
         lsid = lsa.getSubnetAddress()
         subnetmask = lsa.getSubnetMask()
@@ -128,7 +119,6 @@ class ABRLSDB(LSDB):
                 return False
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
-
         pack = LinkStateUpdatePacket(None, 2, 4, self.routerClass.getRouterID(), self.Area,
                                      0, 0, 0, 0 ,1)
         pack.receiveLSA(lsa)

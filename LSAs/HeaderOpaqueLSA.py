@@ -36,6 +36,19 @@ class HeaderOpaqueLSA:
     def setOpaqueID(self, op):
         self.OpaqueID = op
 
+    def getADVRouter(self):
+        return self.AdvertisingRouter
+
+    def printatudo(self):
+        print "AGE ", (self.LinkStateAge)
+        print "OPTIONS ", self.Options
+        print "TYPE ", self.LinkStateType
+        print "OPAQUE ID ", self.OpaqueID
+        print "Adver Router ", self.AdvertisingRouter
+        print "Link State SeqNum ", self.LinkStateSequenceNumber
+        print "CHECKSUM ", self.LinkStateChecksum
+        print "LENGHT ", self.Length
+
     def getLSType(self):
         return self.LinkStateType
 
