@@ -38,6 +38,18 @@ def createchecksum(msg, lenN, type):
     checksum = compl ^ 0xffff
     return hex(checksum)
 
+def append_hex(a, b):
+    sizeof_b = 0
+
+    # get size of b in bits
+    while((b >> sizeof_b) > 0):
+        sizeof_b += 1
+
+    # align answer to nearest 4 bits (hex digit)
+    sizeof_b += sizeof_b % 4
+
+    return (a << sizeof_b) | b
+
 def IPtoDec(ip):
     parts = ip.split('.')
     return (int(parts[0]) << 24) + (int(parts[1]) << 16) + \

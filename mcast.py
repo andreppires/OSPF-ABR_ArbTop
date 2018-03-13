@@ -3,7 +3,7 @@ from string import atoi
 from binascii import b2a_hex, b2a_qp
 
 from LSAs.SummaryLSA import SummaryLSA
-from utils import getIPAllInterfaces, IPtoDec
+from utils import getIPAllInterfaces, IPtoDec, append_hex
 
 from OSPFPackets.LinkStateAcknowledgmentPacket import LinkStateAcknowledgmentPacket
 from OSPFPackets.DatabaseDescriptionPacket import DatabaseDescriptionPacket
@@ -75,7 +75,7 @@ def readPack(addr, data):
 
         pos += 20
         version = (td(data[pos]))
-        packet_lenght = (td(data[pos + 2])) + (td(data[pos + 3]))
+        packet_lenght = append_hex((td(data[pos + 2])),(td(data[pos + 3])))
         # Message Type
         if b2a_hex(data[pos + 1]) == HELLO_PACKET:
             type = 1
