@@ -64,7 +64,9 @@ class LSDB:
             x = self.removeLSA(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), False)
             if lsa.getSource() != None and \
                             lsa.getADVRouter() == self.routerClass.getRouterID() and \
-                            lsa.getSeqNumber() > x.getSeqNumber():
+                            lsa.getSeqNumber() >= x.getSeqNumber() and \
+                            lsa.getChecksum() != x.getChecksum():
+
                 if lsa.getLSType() == 1:
                     self.routerClass.createLSA(self.Area, self.routerClass.getRouterID(),
                                               lsa.getSeqNumber() + 1)
@@ -79,7 +81,6 @@ class LSDB:
         self.FlushLSA(lsa)
         lsatype = lsa.getLSType()
         if lsatype == 1 or lsatype == 2:    # se o lsa recebido for um netork ou router LSA.
-            print "vou recalcular rotas porque:", lsa.getLSID()
             self.constructgraph()
             self.recalculateshortestPaths()
 
