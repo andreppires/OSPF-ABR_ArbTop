@@ -84,7 +84,6 @@ class LSDB:
             self.recalculateshortestPaths()
 
     def recalculateshortestPaths(self):
-        self.printGraph()
         leastcostpathroutes = []
         rid = self.routerClass.getRouterID()
         for x in self.LSAs:
@@ -94,25 +93,19 @@ class LSDB:
             if x.getLSType() == 2:    # Network-LSA
                 result = []
                 for y in x.getAttachedRouters():
-                    print "####", x.getLSID(), y
                     sumatorio = {}
                     try:
                         data1 = shortestPathCalculator(self.graph, rid, y)
-                        print data1
                         data2 = shortestPathCalculator(self.graph, y, x.getLSID())
-                        print data2
                         del data2['path'][0]
                         sumatorio['path'] = data1['path'] + data2['path']
                         sumatorio['cost'] = data1['cost'] + data2['cost']
                         result.append(sumatorio)
                     except Exception:
                         pass
-                print "result:", result
                 try:
                     result = sorted(result, key=itemgetter('cost'))
-                    print "sorted:", result
                     leastcost = result[0]['cost']
-                    print "best cost:", leastcost
                     for z in range(0, len(result) - 1):
                         if result[z]['cost'] != leastcost:
                             break
