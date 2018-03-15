@@ -192,7 +192,6 @@ class interface:
 
         LSDB = self.routerclass.getLSDB(self.AreaID)
         ListHeaderstosendLSDB = LSDB.getHeaderLSAs()
-
         if master:
 
             # Wait for slave response
@@ -200,7 +199,6 @@ class interface:
             sourceRouter = packetReceived.getSourceRouter()
             ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
             LSAHeaders = packetReceived.getListLSA()
-
             ddseqnumber += 1
             newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
                                                 0, 2, 0, 1, 1, ddseqnumber, False)
@@ -223,6 +221,7 @@ class interface:
             MbitRecv = packetReceived.getMbit()
             LSAHeaders += packetReceived.getListLSA()
 
+
             Mbit = True
             while Mbit:
                 # Exchange not ended
@@ -241,6 +240,7 @@ class interface:
                 sourceRouter = packetReceived.getSourceRouter()
                 ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
                 Mbit = packetReceived.getMbit()
+                LSAHeaders += packetReceived.getListLSA()
 
 
             # End Exchange: move to Loading
@@ -287,8 +287,7 @@ class interface:
                 sourceRouter = packetReceived.getSourceRouter()
                 ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
                 Mbit = packetReceived.getMbit()
-                for x in (packetReceived.getListLSA()):
-                    LSAHeaders.append(x)
+                LSAHeaders += packetReceived.getListLSA()
 
                 # create DD to send
                 packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2,

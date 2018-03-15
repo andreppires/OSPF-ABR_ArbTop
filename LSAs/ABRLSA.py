@@ -1,9 +1,8 @@
 import struct
-
 import utils
 from LSAs.HeaderOpaqueLSA import HeaderOpaqueLSA
 
-OSPF_LSA_ABR = "> L L" #Link Data struct
+OSPF_LSA_ABR = "> L L"  # Link Data struct
 OSPF_LSA_ABR_LEN = struct.calcsize(OSPF_LSA_ABR)
 
 class ABRLSA(HeaderOpaqueLSA):
@@ -25,6 +24,7 @@ class ABRLSA(HeaderOpaqueLSA):
     def printLSA(self):
         print "##### ABR-LSA id:", self.OpaqueID
         print "ADV Router:", self.getADVRouter(), "\tNeighbors count:", len(self.LinkData)
+        self.printatudo()
 
     def calculateLength(self, ck):
 
@@ -37,7 +37,7 @@ class ABRLSA(HeaderOpaqueLSA):
 
         pack = ''
         for x in self.LinkData:
-            pack = pack + struct.pack(OSPF_LSA_ABR_LEN, utils.IPtoDec(x[0]), (x[1]))
+            pack = pack + struct.pack(OSPF_LSA_ABR, utils.IPtoDec(x[0]), (x[1]))
         return pack
 
     def calculateChecksum(self):
@@ -63,4 +63,3 @@ class ABRLSA(HeaderOpaqueLSA):
         for x in self.LinkData:
             out[x[0]] = x[1]
         return out
-

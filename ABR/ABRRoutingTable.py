@@ -43,7 +43,7 @@ class ABRRoutingTable(RoutingTable):
             interface = self.RoutingClass.WhatInterfaceReceivedthePacket(entry['path'][0][1])
 
             entrie =dest + "/" + str(dotedNetmask) +\
-                    " via " + utils.getIPofInterface(interface) + " dev " + interface
+                    " via " + utils.getIPofInterface(interface) + " dev " + interface + " metric 110"
             # add new routing table entry for destination
             bashCommand = "sudo ip route add " + entrie
             os.system(bashCommand)
@@ -55,7 +55,7 @@ class ABRRoutingTable(RoutingTable):
                 for path in data:
                     interface = self.RoutingClass.WhatInterfaceReceivedthePacket(path[1])
                     entrie = dest + "/" + str(dotedNetmask) +\
-                             " via " + utils.getIPofInterface(interface) + " dev " + interface
+                             " via " + utils.getIPofInterface(interface) + " dev " + interface + " metric 110"
 
                     # add new routing table entry for destination
                     bashCommand = "sudo ip route add " + entrie
@@ -67,5 +67,5 @@ class ABRRoutingTable(RoutingTable):
         for x in self.kernelEntries:
             listentries = self.kernelEntries[x]
             for y in listentries:
-                bashCommand = "sudo ip route flush " + y
+                bashCommand = "sudo ip route flush " + y[:-11]
                 os.system(bashCommand)

@@ -64,6 +64,17 @@ class cmdOSPF(cmd.Cmd):
         """Hello!!!"""
         print "hello!"
 
+    def do_kernel_route(self, line):
+        """ Route -n linux command"""
+        bashCommand = "route -n"
+        os.system(bashCommand)
+
+    def do_ping(self, line):
+        """ Ping linux comand [2 pckts]"""
+        bashCommand = "ping -c 2 " + line
+        os.system(bashCommand)
+
+
     def do_EOF(self, line):
         """to stop reading a file"""
         return True
@@ -232,11 +243,9 @@ class cmdOSPF(cmd.Cmd):
             if x == 'ABR':
                 continue
             N = self.LSDB[x][0].getNeighbordABR(self.RouterID)
-            print "NNNNN:", N
             for y in N:
                 ABRNeighbords.append(y)
 
-        print "OLEEEE",ABRNeighbords
         # add them
         for x in ABRNeighbords:
             lsa.addLinkDataEntry(x)

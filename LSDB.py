@@ -27,7 +27,8 @@ class LSDB:
         return self.Area
 
     def printGraph(self):
-        print self.graph
+        for x in self.graph:
+            print x,":", self.graph[x]
 
     def run(self):
         sleep(1)
@@ -66,22 +67,24 @@ class LSDB:
                             lsa.getSeqNumber() > x.getSeqNumber():
                 if lsa.getLSType() == 1:
                     self.routerClass.createLSA(self.Area, self.routerClass.getRouterID(),
-                                               lsa.getSeqNumber() +1)
+                                              lsa.getSeqNumber() + 1)
                     return
                 if lsa.getLSType() == 2:
                     self.routerClass.AlertToCreateNetworkLSA(lsa.getLSID(),
-                                                             lsa.getSeqNumber() +1)
-                    returbyen
+                                                             lsa.getSeqNumber() + 1)
+                    return
 
         lsa.calculateChecksum()
         self.LSAs.append(lsa)
         self.FlushLSA(lsa)
         lsatype = lsa.getLSType()
-        if lsatype == 1 or lsatype ==2: # se o lsa recebido for um netork ou router LSA.
+        if lsatype == 1 or lsatype == 2:    # se o lsa recebido for um netork ou router LSA.
+            print "vou recalcular rotas porque:", lsa.getLSID()
             self.constructgraph()
             self.recalculateshortestPaths()
 
     def recalculateshortestPaths(self):
+        self.printGraph()
         leastcostpathroutes = []
         rid = self.routerClass.getRouterID()
         for x in self.LSAs:
@@ -89,26 +92,35 @@ class LSDB:
             haveToSend = False
 
             if x.getLSType() == 2:    # Network-LSA
-                try:
-                    result = []
-                    for y in x.getAttachedRouters():
+                result = []
+                for y in x.getAttachedRouters():
+                    print "####", x.getLSID(), y
+                    sumatorio = {}
+                    try:
                         data1 = shortestPathCalculator(self.graph, rid, y)
+                        print data1
                         data2 = shortestPathCalculator(self.graph, y, x.getLSID())
+                        print data2
                         del data2['path'][0]
-                        sumatorio = {}
                         sumatorio['path'] = data1['path'] + data2['path']
                         sumatorio['cost'] = data1['cost'] + data2['cost']
-
                         result.append(sumatorio)
+                    except Exception:
+                        pass
+                print "result:", result
+                try:
                     result = sorted(result, key=itemgetter('cost'))
+                    print "sorted:", result
                     leastcost = result[0]['cost']
-                    for z in range(0, len(result)-1):
+                    print "best cost:", leastcost
+                    for z in range(0, len(result) - 1):
                         if result[z]['cost'] != leastcost:
                             break
                         routes.append(result[z]['path'])
                         haveToSend = True
                 except Exception:
                     pass
+
                 if haveToSend:
                     aux = {}
                     aux['destination'] = getNetworkfromIPandMask(x.getLSID(), x.getNetworkMask())
@@ -116,7 +128,6 @@ class LSDB:
                     aux['path'] = routes
                     aux['netmask'] = x.getNetworkMask()
                     leastcostpathroutes.append(aux)
-
 
         self.routerClass.setNewRoutes(leastcostpathroutes, False)
 
