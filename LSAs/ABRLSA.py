@@ -24,7 +24,6 @@ class ABRLSA(HeaderOpaqueLSA):
     def printLSA(self):
         print "##### ABR-LSA id:", self.OpaqueID
         print "ADV Router:", self.getADVRouter(), "\tNeighbors count:", len(self.LinkData)
-        self.printatudo()
 
     def calculateLength(self, ck):
 

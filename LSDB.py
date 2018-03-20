@@ -152,7 +152,7 @@ class LSDB:
     def getHeaderLSAs(self):
         list=[]
         for x in self.LSAs:
-            list.append(x.getHeaderPack(False))
+            list.append(x.getHeaderPack())
         return list
 
     def HaveThisLSA(self, lsa):

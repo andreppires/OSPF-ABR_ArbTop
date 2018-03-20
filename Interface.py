@@ -336,7 +336,7 @@ class interface:
                                              self.RouterID, self.AreaID, 0, 0, 0, 0)
         LSAs = packetReceived.getReceivedLSAs()
         for x in LSAs:
-            pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
+            pack.receiveLSA(x.getHeaderPack(), x.getLengthHeader(False))
             if x.getLSType() != 3:
                 self.routerclass.receiveLSAtoLSDB(x, self.AreaID)
 
@@ -869,7 +869,7 @@ class interface:
                                              self.RouterID, self.AreaID, 0, 0, 0, 0)
 
         for x in LSAs:
-            pack.receiveLSA(x.getHeaderPack(False), x.getLengthHeader(False))
+            pack.receiveLSA(x.getHeaderPack(), x.getLengthHeader(False))
             if x.getLSType() == 11:
                 print 'Interface: OpaqueID=', x.getOpaqueID(), 'ADVRouter=', x.getADVRouter()
                 self.routerclass.receiveLSAtoLSDB(x, 'ABR')

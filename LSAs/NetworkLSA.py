@@ -34,7 +34,7 @@ class NetworkLSA(LSAHeader):
 
         pack = self.packNLSA()
 
-        structn = self.getHeaderPack(True) + pack
+        structn = self.getHeaderPack() + pack
 
         checkum = utils.fletcher(structn, 16, lg)
         self.setChecksum(checkum)
@@ -49,7 +49,7 @@ class NetworkLSA(LSAHeader):
 
     def getLSAtoSend(self):
         pack = self.packNLSA()
-        return self.getHeaderPack(False) + pack, self.getLength()
+        return self.getHeaderPack() + pack, self.getLength()
 
     def getPrefixAndCost(self):
         network = utils.getNetworkfromIPandMask(self.LinkStateID, self.NetworkMask)

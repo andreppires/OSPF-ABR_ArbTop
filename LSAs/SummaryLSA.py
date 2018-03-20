@@ -36,7 +36,7 @@ class SummaryLSA(LSAHeader):
 
         pack = self.packSLSA()
 
-        structn = self.getHeaderPack(True) + pack
+        structn = self.getHeaderPack() + pack
 
         checkum = utils.fletcher(structn, 16, lg)
         self.setChecksum(checkum)
@@ -44,4 +44,4 @@ class SummaryLSA(LSAHeader):
 
     def getLSAtoSend(self, ):
         pack = self.packSLSA()
-        return [self.getHeaderPack(False) + pack, self.getLength()]
+        return [self.getHeaderPack() + pack, self.getLength()]

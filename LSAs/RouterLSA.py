@@ -34,7 +34,7 @@ class RouterLSA(LSAHeader):
 
         pack = self.packRLSA()
 
-        structn = self.getHeaderPack(True) + pack
+        structn = self.getHeaderPack() + pack
 
         checkum = utils.fletcher(structn, 16, lg)
         self.setChecksum(checkum)
@@ -57,7 +57,7 @@ class RouterLSA(LSAHeader):
 
     def getLSAtoSend(self, ):
         pack = self.packRLSA()
-        return [self.getHeaderPack(False) + pack, self.getLength()]
+        return [self.getHeaderPack() + pack, self.getLength()]
 
     def setBbit(self, value):
         self.B = value

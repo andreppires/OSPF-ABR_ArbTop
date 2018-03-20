@@ -75,7 +75,7 @@ class LSAHeader:
         print self.LinkStateAge, self.LinkStateType, self.LinkStateID, self.LinkStateSequenceNumber
 
 
-    def getHeaderPack(self, chck):
+    def getHeaderPack(self):
 
         if type(self.LinkStateChecksum) is not str:
             ck = struct.pack(">H", self.LinkStateChecksum)
