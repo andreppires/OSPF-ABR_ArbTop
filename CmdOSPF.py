@@ -182,9 +182,9 @@ class cmdOSPF(cmd.Cmd):
                     else:
                         "Error creating LSA. Link Type not supported"
         if sn == False:
-            rlsa = RouterLSA(None, 0, 2, 1, rid, rid, 0, 1, 0, 0, 0, False, len(linkdata), linkdata)
+            rlsa = RouterLSA(None, 0, 0, 1, rid, rid, 0, 1, 0, 0, 0, False, len(linkdata), linkdata)
         else:
-            rlsa = RouterLSA(None, 0, 2, 1, rid, rid, sn, 1, 0, 0, 0, False, len(linkdata), linkdata)
+            rlsa = RouterLSA(None, 0, 0, 1, rid, rid, sn, 1, 0, 0, 0, False, len(linkdata), linkdata)
 
         if area in self.LSDB:
             if len(self.LSDB) > 1:

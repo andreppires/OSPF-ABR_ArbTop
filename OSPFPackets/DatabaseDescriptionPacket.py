@@ -11,7 +11,7 @@ class DatabaseDescriptionPacket(OSPFPacket):
     def __init__(self, sourceRouter, version, tp, RouterID, areaID, checksum, AuType,
                  authentication1, authentication2, External, init, more, master, seqNumber, toSend):
         self.sourceRouter = sourceRouter
-        self.Options = External
+        self.Options = 64 # O-bit set to notify that i'm opaque-capable
         self.Init = init
         self.More = more
         self.Master = master
