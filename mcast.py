@@ -283,35 +283,34 @@ def readPack(addr, data):
                     print "Read of External LSA not done"
                     pass
 
-                if LSType == 11: #Opaque-LSA - AS flooding
+                if LSType == 11:    # Opaque-LSA - AS flooding
 
                     opaquetype = td(data[newpos+4])
                     opaqueid = append_hex(td(data[newpos + 5]), append_hex(td(data[newpos + 6]),
                                                                                td(data[newpos + 7])))
                     print 'mcast: Opaque Type:', opaquetype, 'OpaqueID=', opaqueid, 'ADVRouter=',AdvertisingRouter
-                    if opaquetype == 20: #ABR-LSA
+                    if opaquetype == 20:    # ABR-LSA
                         NNeigh = (Length - 18) / 8
 
                         newlsa = ABRLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter, LSSeqNum,
                                         LSChecksum, Length)
 
                         for x in range(0, NNeigh):
-                            Metric = IPtoDec((inet_ntoa(data[newpos + x*8 + 8:newpos +x*8 + 12])))
-                            NeighborID = (inet_ntoa(data[newpos + x*8 + 12:newpos +x*8 + 16]))
+                            Metric = IPtoDec((inet_ntoa(data[newpos + x*20 + 20:newpos +x*24 + 24])))
+                            NeighborID = (inet_ntoa(data[newpos + x*28 + 28:newpos +x*28 + 28]))
                             newlsa.addLinkDataEntry([NeighborID,Metric])
                         packet.receiveLSA(newlsa)
 
-                    if opaquetype == 21: #Prefix-LSA
-                        Metric = int(str(hex(td(data[newpos + 8]))) + str(hex(td(data[newpos+9])))[2:] +
-                                     str(hex(td(data[newpos + 10])))[2:] + str(hex(td(data[newpos+11])))[2:], 16)
-                        SubnetMask = (inet_ntoa(data[newpos + 12:newpos +16]))
-                        SubnetPrefix = (inet_ntoa(data[newpos + 16:newpos +20]))
+                    if opaquetype == 21:    # Prefix-LSA
+                        Metric = IPtoDec(inet_ntoa(data[newpos + 20: newpos + 24]))
+                        SubnetMask = (inet_ntoa(data[newpos + 24:newpos + 28]))
+                        SubnetPrefix = (inet_ntoa(data[newpos + 28:newpos + 32]))
 
                         newlsa = PrefixLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter,
                                            LSSeqNum, LSChecksum, Length, Metric, SubnetMask, SubnetPrefix)
                         packet.receiveLSA(newlsa)
 
-                    if opaquetype == 22: #ASBR-LSA
+                    if opaquetype == 22:    # ASBR-LSA
                         Metric = int(str(hex(td(data[newpos + 8]))) + str(hex(td(data[newpos + 9])))[2:] +
                                      str(hex(td(data[newpos + 10])))[2:] + str(hex(td(data[newpos + 11])))[2:], 16)
                         DestinationRID = (inet_ntoa(data[newpos + 12:newpos + 16]))

@@ -25,8 +25,9 @@ class PrefixLSA(HeaderOpaqueLSA):
         return self.Metric
 
     def printLSA(self):
-        print "##### Prefix-LSA id:", self.OpaqueID
+        print "##### Prefix-LSA id:", self.OpaqueID, ", ADV Router:", self.getADVRouter()
         print "Prefix", self.SubnetAddress, "\tSubnet Mask:", self.SubnetMask, "\tMetric:", self.Metric
+
     def calculateLength(self, ck):
         hdlen = self.getLengthHeader(ck)
         netlen = OSPF_LSA_PREFIX_LEN

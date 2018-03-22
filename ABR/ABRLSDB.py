@@ -54,13 +54,18 @@ class ABRLSDB(LSDB):
                     cost = x.getMetric() + \
                            shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
                 except:
-                    return
+                    return # TODO
                 for y in self.LSAs:
                     if y not in visited:
                         visited.append(y)
                         if y.getOpaqueType() == 21:
                             if y.getSubnetAddress() == destination and y.getSubnetMask() == netmask:
-                                thisCost = y.getMetric() + shortestPathCalculator(self.graph, rid, y.getADVRouter())
+                                try:
+                                    thisCost = y.getMetric() + \
+                                               shortestPathCalculator(self.graph,
+                                                                      rid, y.getADVRouter())
+                                except Exception:
+                                    return # TODO
                                 if thisCost < cost:
                                     bestchoice = y
                                     cost = thisCost
