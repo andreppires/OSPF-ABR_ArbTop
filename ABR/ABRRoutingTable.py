@@ -40,6 +40,8 @@ class ABRRoutingTable(RoutingTable):
 
         if destination['path'] == rid:    # o ABR com melhor custo para o destino sou eu
             entry = self.RoutingClass.getRoutingDatatointraareaRouting(dest)
+            if entry == False:
+                return
             interface = self.RoutingClass.WhatInterfaceReceivedthePacket(entry['path'][0][1])
 
             entrie =dest + "/" + str(dotedNetmask) +\

@@ -54,7 +54,7 @@ class ABRLSDB(LSDB):
                     cost = x.getMetric() + \
                            shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
                 except:
-                    pass
+                    return
                 for y in self.LSAs:
                     if y not in visited:
                         visited.append(y)

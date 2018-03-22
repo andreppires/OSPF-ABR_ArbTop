@@ -215,21 +215,20 @@ class cmdOSPF(cmd.Cmd):
                 continue
             self.createLSA(x, self.RouterID, False)
 
-
     def threadforAbrLsdbStart(self):
         self.threadABR = True
-        t = threading.Thread(target=self.createLSDBforABROverlay, args=())
+        t = threading.Thread(target=self.createLSDBforABROverlay, args=[True])
         t.daemon = True
         t.start()
 
-    def createLSDBforABROverlay(self):
+    def createLSDBforABROverlay(self, createLSAs):
         if 'ABR' not in self.LSDB:
             x = [ABRLSDB('ABR', self), 0]
             self.LSDB['ABR'] = x
+        if createLSAs:
             self.createASBRLSAs()
             self.createPrefixLSAs()
-        self.createABRLSA()
-        return
+            self.createABRLSA()
 
     def createABRLSA(self):
 
@@ -303,7 +302,9 @@ class cmdOSPF(cmd.Cmd):
 
     def receiveLSAtoLSDB(self, lsa, area):
         if area not in self.LSDB:
-            return 0
+            if area == 'ABR':
+                self.createLSDBforABROverlay(False)
+
         self.LSDB[area][0].receiveLSA(lsa)
 
     def getLSDB(self, areaid):
