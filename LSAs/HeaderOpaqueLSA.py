@@ -83,7 +83,7 @@ class HeaderOpaqueLSA:
              self.LinkStateSequenceNumber = sn + 1
 
     def printLSA(self):
-        print self.LinkStateAge, self.LinkStateType, self.LinkStateID, self.LinkStateSequenceNumber
+        print self.LinkStateAge, self.LinkStateType, self.OpaqueID, self.LinkStateSequenceNumber
 
     def getHeaderPack(self):
 
@@ -104,7 +104,7 @@ class HeaderOpaqueLSA:
         if checksum:
             return OSPF_LSA_OPAQUE_HDR_CHKS_LEN
         else:
-            return OSPF_LSA_OPAQUE_HDR
+            return OSPF_LSA_OPAQUE_HDR_LEN
 
     def setLength(self, lgt, chks):
         if chks:

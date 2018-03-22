@@ -181,7 +181,7 @@ def readPack(addr, data):
             for x in range(0, NLSAHeaders):
                 lsa = data[newpos:newpos+20]
                 packet.addLSAHeader(lsa)
-                newpos += 20
+                newpos = newpos + 20
 
             return packet
 
@@ -209,11 +209,7 @@ def readPack(addr, data):
         if type == 4:
             # Link State Update
 
-            LS1 = str(hex(td(data[pos + 24])))
-            LS2 = str(hex(td(data[pos + 25])))
-            LS3 = str(hex(td(data[pos + 26])))
-            LS4 = str(hex(td(data[pos + 27])))
-            NLSAs = int(LS1 + LS2[2:] + LS3[2:] + LS4[2:], 16)
+            NLSAs = IPtoDec(inet_ntoa(data[pos + 24:pos + 28]))
 
             # create LSUpdate
             packet = LinkStateUpdatePacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
@@ -222,7 +218,8 @@ def readPack(addr, data):
             newpos = pos + 28
 
             for x in range(0,NLSAs): #Read the LSAs
-                LSAge = int(str(hex(td(data[newpos]))) + str(hex(td(data[newpos+1])))[2:], 16)
+
+                LSAge = append_hex((td(data[newpos])), (td(data[newpos + 1])))
                 Options = td(data[newpos+2])
                 LSType = td(data[newpos+3])
                 LSID = (inet_ntoa(data[newpos + 4:newpos +8]))
@@ -231,8 +228,7 @@ def readPack(addr, data):
                 a = (td(data[newpos + 16]))
                 b = (td(data[newpos + 17]))
                 LSChecksum = chr(a)+chr(b)
-                Length = int(str(hex(td(data[newpos + 18]))) + str(hex(td(data[newpos+19])))[2:] ,16)
-
+                Length = append_hex((td(data[newpos+18])), (td(data[newpos + 19])))
 
                 if LSType == 1: # Router-LSA
                     VEB = td(data[newpos+20])
@@ -290,21 +286,17 @@ def readPack(addr, data):
                 if LSType == 11: #Opaque-LSA - AS flooding
 
                     opaquetype = td(data[newpos+4])
-                    id1 = str(hex(td(data[newpos + 5])))
-                    id2 = str(hex(td(data[newpos + 6])))
-                    id3 = str(hex(td(data[newpos + 7])))
-                    opaqueid = int(id1 + id2[2:] + id3[2:], 16)
-                    print 'mcast: OpaqueID=', opaqueid, 'ADVRouter=',AdvertisingRouter
+                    opaqueid = append_hex(td(data[newpos + 5]), append_hex(td(data[newpos + 6]),
+                                                                               td(data[newpos + 7])))
+                    print 'mcast: Opaque Type:', opaquetype, 'OpaqueID=', opaqueid, 'ADVRouter=',AdvertisingRouter
                     if opaquetype == 20: #ABR-LSA
-                        NNeigh = (packet_lenght - 44) / 8
+                        NNeigh = (Length - 18) / 8
 
                         newlsa = ABRLSA(addr[0], LSAge, Options, opaqueid, AdvertisingRouter, LSSeqNum,
                                         LSChecksum, Length)
 
-                        for x in NNeigh:
-                            Metric = int(str(hex(td(data[newpos + x*8 + 8]))) + str(hex(td(data[newpos + x*8 + 9])))[2:]
-                                         + str(hex(td(data[newpos + x*8 + 10])))[2:] + str(hex(td(data[newpos + x*8 +
-                                                                                                       11])))[2:], 16)
+                        for x in range(0, NNeigh):
+                            Metric = IPtoDec((inet_ntoa(data[newpos + x*8 + 8:newpos +x*8 + 12])))
                             NeighborID = (inet_ntoa(data[newpos + x*8 + 12:newpos +x*8 + 16]))
                             newlsa.addLinkDataEntry([NeighborID,Metric])
                         packet.receiveLSA(newlsa)

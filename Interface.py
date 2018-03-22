@@ -311,6 +311,9 @@ class interface:
 
         haveToSend = False
         for x in LSAHeaders:
+             if len(x) != 20:
+                 print "erro! Bad Length do LSA Header retirado do LS Request"
+                 continue
              LSAH = unpackLSAHeader(x)
              if LSDB.HaveThisLSA(LSAH):
                  continue
