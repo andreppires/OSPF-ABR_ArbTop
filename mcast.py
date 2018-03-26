@@ -288,7 +288,6 @@ def readPack(addr, data):
                     opaquetype = td(data[newpos+4])
                     opaqueid = append_hex(td(data[newpos + 5]), append_hex(td(data[newpos + 6]),
                                                                                td(data[newpos + 7])))
-                    print 'mcast: Opaque Type:', opaquetype, 'OpaqueID=', opaqueid, 'ADVRouter=',AdvertisingRouter
                     if opaquetype == 20:    # ABR-LSA
                         NNeigh = (Length - 18) / 8
 

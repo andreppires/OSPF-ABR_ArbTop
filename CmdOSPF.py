@@ -186,8 +186,12 @@ class cmdOSPF(cmd.Cmd):
         else:
             rlsa = RouterLSA(None, 0, 0, 1, rid, rid, sn, 1, 0, 0, 0, False, len(linkdata), linkdata)
 
+        aux = 1
         if area in self.LSDB:
-            if len(self.LSDB) > 1:
+
+            if 'ABR' in self.LSDB:
+                aux = aux + 1
+            if len(self.LSDB) > aux:
                 rlsa.setBbit(True)
                 if self.ABR == False:
                     self.updateOurRouterLSAsTOABR(area)
@@ -198,8 +202,9 @@ class cmdOSPF(cmd.Cmd):
                 x = [LSDB(area, self), 0]
             else:
                 x = [ABRLSDB(area, self), 0]
+                aux = aux +1
             self.LSDB[area] = x
-            if len(self.LSDB) > 1:
+            if len(self.LSDB) > aux:
                 rlsa.setBbit(True)
                 if self.ABR == False:
                     self.updateOurRouterLSAsTOABR(area)
@@ -282,7 +287,11 @@ class cmdOSPF(cmd.Cmd):
         while True:
             for x in self.LSDB:
                 if self.LSDB[x][1] == 1800:
-                    self.createLSA(self.LSDB[x][0].getArea(), self.RouterID, False)
+                    area = self.LSDB[x][0].getArea()
+                    if area != 'ABR':
+                        self.createLSA(area, self.RouterID, False)
+                    else:
+                        self.createABRLSA()
                     self.LSDB[x][1] = 0
                 else:
                     self.LSDB[x][1] = self.LSDB[x][1] + 1

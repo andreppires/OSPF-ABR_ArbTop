@@ -96,7 +96,6 @@ class HeaderOpaqueLSA:
                            self.OpaqueType, 0, self.OpaqueID, utils.IPtoDec(self.AdvertisingRouter),
                            self.LinkStateSequenceNumber) + ck + struct.pack("!H", self.Length)
 
-
     def getLength(self):
         return self.Length
 
