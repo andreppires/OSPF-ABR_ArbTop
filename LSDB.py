@@ -179,7 +179,7 @@ class LSDB:
                     cost = shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
                 except TypeError:
                     continue
-                out.append([cost, x.getADVRouter()])
+                out.append([x.getADVRouter(), cost])
         return out
 
     def getNetworkLSAs(self):

@@ -517,7 +517,12 @@ class interface:
                                 if x['RouterPriority'] == listofBDR[0]['RouterPriority']:
                                     listPossibleBDR.append(x)
                             if len(listPossibleBDR) != 0:
-                                listPossibleBDR.sort(listPossibleBDR, key=itemgetter('RouterID'), reverse=True)
+                                try:
+                                    listPossibleBDR.sort(listPossibleBDR,
+                                                         key=itemgetter('RouterID'),
+                                                         reverse=True)
+                                except TypeError:
+                                    pass
                             if listPossibleBDR[0]['RouterID'] == routerItSelf['RouterID']:   # Eu sou o BDR
                                 bdr= self.IPInterfaceAddress
                                 statebdr = True
@@ -660,7 +665,7 @@ class interface:
                         # TODO not tested
                         if x['RouterID'] > routerid:
                             routerid = x['RouterID']
-                            pass
+                            continue
                     bdr = x['neighbordAddress']
                     for j in listPossible:
                         if j['RouterID'] == x['RouterID']:

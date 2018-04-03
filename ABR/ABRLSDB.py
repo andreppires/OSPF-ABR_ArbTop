@@ -10,6 +10,11 @@ class ABRLSDB(LSDB):
     def __init__(self, area, routerclass):
         LSDB.__init__(self, area, routerclass)
 
+    def printLSDB(self):
+        self.LSAs = sorted(self.LSAs, key=lambda LSA: LSA.getOpaqueID())
+        for x in self.LSAs:
+            x.printLSA()
+
     def removeLSA(self, LSType, LSID, LSAdvRouter, flush):
         for x in self.LSAs:
             if x.getLSType() == LSType and x.getLSID() == LSID  and x.getADVRouter() == LSAdvRouter:
@@ -140,7 +145,10 @@ class ABRLSDB(LSDB):
                 sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
                 interfaces = self.routerClass.getInterfaceIPExcept(x)
                 sourceInterface = getIPofInterface(sourceInterface)
-                interfaces.remove(sourceInterface)
+                try:
+                    interfaces.remove(sourceInterface)
+                except ValueError:
+                    continue
             if len(interfaces) != 0:
                 deliver(packed, interfaces, None, True)
 

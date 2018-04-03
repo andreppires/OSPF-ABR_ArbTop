@@ -36,7 +36,7 @@ class ABRLSA(HeaderOpaqueLSA):
 
         pack = ''
         for x in self.LinkData:
-            pack = pack + struct.pack(OSPF_LSA_ABR, utils.IPtoDec(x[1]), (x[0]))
+            pack = pack + struct.pack(OSPF_LSA_ABR, utils.IPtoDec(x[0]), (x[1]))
         return pack
 
     def calculateChecksum(self):

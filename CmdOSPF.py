@@ -86,9 +86,12 @@ class cmdOSPF(cmd.Cmd):
         return True
 
     def do_lsdb(self, line):
+        """lsdb [area ip] list all LSAs from one LSDB"""
+
         self.LSDB[line][0].printLSDB()
 
     def do_graph(self, line):
+        """graph [area ip] shows the gaph of the area"""
         self.LSDB[line][0].printGraph()
 
     def do_list(self, line):
@@ -96,9 +99,11 @@ class cmdOSPF(cmd.Cmd):
         print utils.getAllInterfaces()
 
     def do_fake_routing_table(self, line):
+        """shows a fake routing table based ony on the network and router LSAs"""
         self.fakeRoutingTable.printAll()
 
     def do_routing_table(self, line):
+        """shows the routing table of the OSPF"""
         self.realRoutingTable.printAll()
 
     def do_interface(self, line):
@@ -368,7 +373,7 @@ class cmdOSPF(cmd.Cmd):
         for x in self.LSDB:
             if x == 'ABR':
                 continue
-            data = self.LSDB[0].getPathtoDestination(abr)
+            data = self.LSDB[x][0].getPathtoDestination(abr)
             if data is not False:
                 entries.append(data)
         if len(entries) > 0:
@@ -410,7 +415,7 @@ class cmdOSPF(cmd.Cmd):
                     continue
                 interface_obj.packetReceived(packet, False)
             except Exception:
-                pass
+                continue
 
     def AlertToCreateNetworkLSA(self, lsid, sn):
         interface = self.WhatInterfaceReceivedthePacket(lsid)
