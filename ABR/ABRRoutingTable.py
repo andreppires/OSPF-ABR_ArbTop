@@ -27,7 +27,6 @@ class ABRRoutingTable(RoutingTable):
 
     def takeCareofKernelRoutingTable(self, destination):
         rid = self.RoutingClass.getRouterID()
-
         dotedNetmask = utils.calcDottedNetmask(destination['netmask'])
         dest = destination['destination']
 
@@ -55,7 +54,7 @@ class ABRRoutingTable(RoutingTable):
             if data is not False:
                 self.kernelEntries[dest] = []
                 for path in data:
-                    interface = self.RoutingClass.WhatInterfaceReceivedthePacket(path[1])
+                    interface = self.RoutingClass.WhatInterfaceReceivedthePacket(path['path'][1])
                     entrie = dest + "/" + str(dotedNetmask) +\
                              " via " + utils.getIPofInterface(interface) + " dev " + interface + " metric 110"
 

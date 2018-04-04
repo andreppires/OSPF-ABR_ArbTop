@@ -26,7 +26,6 @@ class ABRLSDB(LSDB):
         return False
 
     def receiveLSA(self, lsa):
-        # print 'ABRLSDB: OpaqueID=', lsa.getOpaqueID(), 'ADVRouter=', lsa.getADVRouter()
         exist = self.LSAAlreadyExists(lsa.getLSType(), lsa.getLSID(), lsa.getADVRouter(), lsa.getOpaqueType(), lsa)
         if exist is not False:
             if lsa.getADVRouter == self.routerClass.getRouterID():
@@ -43,14 +42,14 @@ class ABRLSDB(LSDB):
         self.recalculateshortestPaths()
 
     def recalculateshortestPaths(self):
-        leastcostpathroutes = []
         visited = []
         rid = self.routerClass.getRouterID()
         for x in self.LSAs:
-            if x.getOpaqueType() == 20: #ABR LSA
+            leastcostpathroutes = []
+            if x.getOpaqueType() == 20 and x not in visited: #ABR LSA
                 visited.append(x)
                 continue
-            if x.getOpaqueType() == 21: #Prefix LSA
+            if x.getOpaqueType() == 21 and x not in visited: #Prefix LSA
                 bestchoice = x
                 visited.append(x)
                 destination = x.getSubnetAddress()
@@ -59,28 +58,27 @@ class ABRLSDB(LSDB):
                     cost = x.getMetric() + \
                            shortestPathCalculator(self.graph, rid, x.getADVRouter())['cost']
                 except:
-                    return # TODO
+                    continue
                 for y in self.LSAs:
-                    if y not in visited:
-                        visited.append(y)
-                        if y.getOpaqueType() == 21:
-                            if y.getSubnetAddress() == destination and y.getSubnetMask() == netmask:
-                                try:
-                                    thisCost = y.getMetric() + \
-                                               shortestPathCalculator(self.graph,
-                                                                      rid, y.getADVRouter())
-                                except Exception:
-                                    return # TODO
-                                if thisCost < cost:
-                                    bestchoice = y
-                                    cost = thisCost
+                    if y.getOpaqueType() == 21:
+                        if y.getSubnetAddress() == destination and y.getSubnetMask() == netmask \
+                                and y not in visited:
+                            visited.append(y)
+                            try:
+                                thisCost = y.getMetric() + \
+                                           shortestPathCalculator(self.graph,
+                                                                  rid, y.getADVRouter())['cost']
+                            except Exception:
+                                continue
+                            if thisCost < cost:
+                                bestchoice = y
+                                cost = thisCost
                 aux = {}
                 aux['destination'] = destination
                 aux['cost'] = cost
                 aux['path'] = bestchoice.getADVRouter()
                 aux['netmask'] = netmask
                 leastcostpathroutes.append(aux)
-
             self.routerClass.setNewRoutes(leastcostpathroutes, True)
 
     def createSummaryLSA(self, lsa):
