@@ -231,17 +231,20 @@ class cmdOSPF(cmd.Cmd):
         t.daemon = True
         t.start()
 
+    def newABRNeighbord(self):
+        if self.ABR:
+            self.createABRLSA()
+
     def createLSDBforABROverlay(self, createLSAs):
         if 'ABR' not in self.LSDB:
             x = [ABRLSDB('ABR', self), 0]
             self.LSDB['ABR'] = x
         if createLSAs:
-            self.createASBRLSAs()
-            self.createPrefixLSAs()
             self.createABRLSA()
+            self.createPrefixLSAs()
+            self.createASBRLSAs()
 
     def createABRLSA(self):
-
         # create ABR LSA
         opaqueID = self.getOpaqueID()
         lsa = ABRLSA(None, 0, 2, opaqueID, self.RouterID, 0, 0, 0)

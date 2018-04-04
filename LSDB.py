@@ -83,6 +83,9 @@ class LSDB:
         if lsatype == 1 or lsatype == 2:    # se o lsa recebido for um netork ou router LSA.
             self.constructgraph()
             self.recalculateshortestPaths()
+            if lsatype == 1 and lsa.getADVRouter() != self.routerClass.getRouterID():
+                if lsa.getBbit():
+                    self.routerClass.newABRNeighbord()
 
     def recalculateshortestPaths(self):
         leastcostpathroutes = []

@@ -27,7 +27,6 @@ class ABRRoutingTable(RoutingTable):
 
     def takeCareofKernelRoutingTable(self, destination):
         rid = self.RoutingClass.getRouterID()
-
         dotedNetmask = utils.calcDottedNetmask(destination['netmask'])
         dest = destination['destination']
 
