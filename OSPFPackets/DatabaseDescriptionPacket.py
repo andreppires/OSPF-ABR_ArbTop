@@ -3,7 +3,7 @@ import struct
 from OSPFPacket import OSPFPacket
 from utils import createchecksum
 
-OSPF_DD_HEADER = ">BBBB L"
+OSPF_DD_HEADER = ">HBB L"
 OSPF_DD_HEADER_LEN = struct.calcsize(OSPF_DD_HEADER)
 
 class DatabaseDescriptionPacket(OSPFPacket):
@@ -27,6 +27,9 @@ class DatabaseDescriptionPacket(OSPFPacket):
     def getSourceRouter(self):
         return self.sourceRouter
 
+    def getInitBit(self):
+        return self.Init
+
     def getDatabaseDescriptionSequenceNumber(self):
         return self.DatabaseDescriptionSequenceNumber
 
@@ -46,7 +49,8 @@ class DatabaseDescriptionPacket(OSPFPacket):
 
     def packDD(self):
         IMMS = self.Init*4 + self.More*2 + self.Master*1
-        pack = struct.pack(OSPF_DD_HEADER, 0,0,self.Options, IMMS, (self.DatabaseDescriptionSequenceNumber))
+        pack = struct.pack(OSPF_DD_HEADER, 1500,self.Options, IMMS,
+                           (self.DatabaseDescriptionSequenceNumber)) # MTU of 1500.
         for x in self.ListLSAHeader:
             pack = pack + x
 

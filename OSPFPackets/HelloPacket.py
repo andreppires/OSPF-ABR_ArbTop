@@ -30,6 +30,9 @@ class HelloPacket(OSPFPacket):
         self.setPackLength(OSPF_HELLO_LEN+(len(self.Neighbors)*OSPF_HELLO_NEI_LEN))
         self.computeChecksum()
 
+    def getSourceRouter(self):
+        return self.sourceRouter
+
     def getNRouterID(self):
         return self.RouterID
 

@@ -1,3 +1,4 @@
+import random
 import time, threading
 from operator import itemgetter
 
@@ -10,7 +11,6 @@ from utils import unpackLSAHeader
 from OSPFPackets.LinkStateRequestPacket import LinkStateRequestPacket
 from Neighbord import neighbord
 from LSAs.NetworkLSA import NetworkLSA
-from LSAs.PrefixLSA import PrefixLSA
 
 
 class interface:
@@ -40,6 +40,7 @@ class interface:
         self.AuthenticationKey = None
         self.TypeofInterface = 3    # Stub
         self.LSATimer = 60*30
+        self.ThreadDD = False
 
 
         self.InterfaceStates={0:"Down",
@@ -134,7 +135,8 @@ class interface:
         if packet.getType() == 1:
             self.readHello(packet)
         if packet.getType() == 2:
-            self.startDDProcess()
+            if packet.getInitBit():
+                self.startThreadforDD(packet.getSourceRouter())
         if packet.getType() == 3:
             pass #TODO Link State Request
         if packet.getType() == 4:
@@ -147,11 +149,11 @@ class interface:
 
             found = False
             for x in self.Neighbours:
-                if x['RouterID'] == packet.RouterID:
+                if x['RouterID'] == packet.getRouterID():
                     found = True
-                    self.getNeighbord(packet.RouterID).updateFromHello(packet)
+                    self.getNeighbord(packet.getRouterID()).updateFromHello(packet)
                     continue
-            if found == False:
+            if not found:
 
                 self.Neighbours.append({'RouterID': packet.RouterID,
                                         'Neighbord-object': neighbord(self, packet.RouterDeadInterval, packet.RouterID,
@@ -161,27 +163,31 @@ class interface:
                 if self.havetoNLSA():
                     self.createNLSA(0, False)
                     self.routerclass.createLSA(self.AreaID, self.RouterID, False)
+                self.startThreadforDD(packet.getSourceRouter())
 
-                th = threading.Thread(target=self.startDDProcess, args=())
-                th.daemon = True
-                th.start()
+    def startThreadforDD(self, source):
+        self.ThreadDD = threading.Thread(target=self.startDDProcess, args=[source])
+        self.ThreadDD.daemon = True
+        self.ThreadDD.start()
 
-    def startDDProcess(self):
+
+    def startDDProcess(self, sourceRouter):
         #ExStart phase
+
+        # get random number
+        myddseqnumber = random.randint(1, 65536)
+        # create DD to send
+        packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0,
+                                           0, 0, 2, 1, 1, 1, myddseqnumber, True)
+        packet = packet.packDDtoSend()
+        # send packet to source router
+        deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
+        lastPacketSent= packet
 
         # wait for first packet
         packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
         sourceRouter = packetReceived.getSourceRouter()
         ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
-        # create DD to send
-        packet = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID,
-                                           self.AreaID, 0, 0, 0,
-                                0, 2, 1, 1, 1, ddseqnumber, True)
-        packet = packet.packDDtoSend()
-
-        # send packet to source router
-        deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
-
         # who is the master?
         if self.RouterID > packetReceived.getRouterID():
             master = True   # i'm the master
@@ -195,13 +201,18 @@ class interface:
         if master:
 
             # Wait for slave response
-            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, True)
+            if packetReceived == 0:
+                # resend last packet
+                deliver(lastPacketSent, self.IPInterfaceAddress, sourceRouter, False)
+                packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, True)
+
             sourceRouter = packetReceived.getSourceRouter()
             ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
             LSAHeaders = packetReceived.getListLSA()
             ddseqnumber += 1
-            newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID, 0, 0, 0,
-                                                0, 2, 0, 1, 1, ddseqnumber, False)
+            newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2, self.RouterID, self.AreaID,
+                                                0, 0, 0, 0, 2, 0, 1, 1, ddseqnumber, False)
             for x in ListHeaderstosendLSDB:
                 newpack.addLSAHeader(x)
 
@@ -212,7 +223,6 @@ class interface:
             # send packet to source router
             newpack = newpack.packDDtoSend()
             deliver(newpack, self.IPInterfaceAddress, sourceRouter, False)
-
             # Wait for slave response
             packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
 
@@ -220,7 +230,6 @@ class interface:
             ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
             MbitRecv = packetReceived.getMbit()
             LSAHeaders += packetReceived.getListLSA()
-
 
             Mbit = True
             while Mbit:
@@ -244,7 +253,6 @@ class interface:
 
 
             # End Exchange: move to Loading
-
 
         else:
             newpack = DatabaseDescriptionPacket(self.IPInterfaceAddress, 2, 2,
