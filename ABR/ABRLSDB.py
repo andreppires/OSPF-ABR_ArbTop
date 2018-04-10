@@ -127,12 +127,7 @@ class ABRLSDB(LSDB):
                 return False
 
     def FlushLSA(self, lsa): #flush means send for all interfaces.
-        pack = LinkStateUpdatePacket(None, 2, 4, self.routerClass.getRouterID(), self.Area,
-                                     0, 0, 0, 0 ,1)
-        pack.receiveLSA(lsa)
-        packed = pack.getPackLSUPD()
         sourceRouter = lsa.getSource()
-
         activeAreas = self.routerClass.getActiveAreas()
         for x in activeAreas:
             if sourceRouter == None:
@@ -148,6 +143,10 @@ class ABRLSDB(LSDB):
                 except ValueError:
                     continue
             if len(interfaces) != 0:
+                pack = LinkStateUpdatePacket(None, 2, 4, self.routerClass.getRouterID(), x,
+                                             0, 0, 0, 0, 1)
+                pack.receiveLSA(lsa)
+                packed = pack.getPackLSUPD()
                 deliver(packed, interfaces, None, True)
 
     def constructgraph(self):
