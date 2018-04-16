@@ -9,6 +9,7 @@ import mcast
 import utils
 from ABR.ABRLSDB import ABRLSDB
 from ABR.ABRRoutingTable import ABRRoutingTable
+from DataStructurePacketsUnicast import DataStructurePacketsUnicast
 from Interface import interface
 from LSAs.ABRLSA import ABRLSA
 from LSAs.ASBRLSA import ASBRLSA
@@ -57,6 +58,7 @@ class cmdOSPF(cmd.Cmd):
         self.ABR = False
 
         self.threadUnicast = {}
+        self.dataforUnicastDB = DataStructurePacketsUnicast()
 
         return cmd.Cmd.cmdloop(self)
 
@@ -143,18 +145,21 @@ class cmdOSPF(cmd.Cmd):
         s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         s.bind((interfaceaddr, PROTO))
         if timeout:
-            s.settimeout(10.0)
+            s.settimeout(20.0)
         try:
             while True:
                 data, addr = s.recvfrom(bufferSize)
                 packet = mcast.readPack(addr, data)
-                if packet.getType() != type:
-                    continue
-                break
+                if packet.getType() == type:
+                    if type == 2:
+                        self.dataforUnicastDB.receivePacket(packet)
+                    else:
+                        return packet
         except Exception:
             return 0
 
-        return packet
+    def getNextDBPacket(self):
+        return self.dataforUnicastDB.returnpacket()
 
     def StartInterfacesList(self):
         for x in utils.getAllInterfaces():

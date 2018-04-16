@@ -173,6 +173,10 @@ class interface:
 
     def startDDProcess(self, sourceRouter):
         #ExStart phase
+        threadForUnicast = threading.Thread(target= self.routerclass.unicastReceiver,
+                                            args=[self.IPInterfaceAddress, 2, True])
+        threadForUnicast.daemon = True
+        threadForUnicast.start()
 
         # get random number
         myddseqnumber = random.randint(1, 65536)
@@ -185,7 +189,13 @@ class interface:
         lastPacketSent= packet
 
         # wait for first packet
-        packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+        status = True
+        packetReceived = False
+        while status:
+            packetReceived = self.routerclass.getNextDBPacket()
+            if packetReceived is not False:
+                status = False
+
         sourceRouter = packetReceived.getSourceRouter()
         ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
         # who is the master?
@@ -200,12 +210,12 @@ class interface:
         ListHeaderstosendLSDB = LSDB.getHeaderLSAs()
         if master:
 
-            # Wait for slave response
-            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, True)
-            if packetReceived == 0:
-                # resend last packet
-                deliver(lastPacketSent, self.IPInterfaceAddress, sourceRouter, False)
-                packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, True)
+            # wait for slave packet
+            status = True
+            while status:
+                packetReceived = self.routerclass.getNextDBPacket()
+                if packetReceived is not False:
+                    status = False
 
             sourceRouter = packetReceived.getSourceRouter()
             ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
@@ -224,7 +234,11 @@ class interface:
             newpack = newpack.packDDtoSend()
             deliver(newpack, self.IPInterfaceAddress, sourceRouter, False)
             # Wait for slave response
-            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
+            status = True
+            while status:
+                packetReceived = self.routerclass.getNextDBPacket()
+                if packetReceived is not False:
+                    status = False
 
             sourceRouter = packetReceived.getSourceRouter()
             ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
@@ -244,8 +258,11 @@ class interface:
                 deliver(packet, self.IPInterfaceAddress, sourceRouter, False)
 
                 # Wait for slave response
-                packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
-
+                status = True
+                while status:
+                    packetReceived = self.routerclass.getNextDBPacket()
+                    if packetReceived is not False:
+                        status = False
                 sourceRouter = packetReceived.getSourceRouter()
                 ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
                 Mbit = packetReceived.getMbit()
@@ -270,8 +287,11 @@ class interface:
             deliver(newpack, self.IPInterfaceAddress, sourceRouter, False)
 
             # Wait for master response
-            packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
-
+            status = True
+            while status:
+                packetReceived = self.routerclass.getNextDBPacket()
+                if packetReceived is not False:
+                    status = False
             sourceRouter = packetReceived.getSourceRouter()
             ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
             Mbit = packetReceived.getMbit()
@@ -290,8 +310,11 @@ class interface:
                 # Exchange not ended
 
                 # Wait for master response
-                packetReceived = self.routerclass.unicastReceiver(self.IPInterfaceAddress, 2, False)
-
+                status = True
+                while status:
+                    packetReceived = self.routerclass.getNextDBPacket()
+                    if packetReceived is not False:
+                        status = False
                 sourceRouter = packetReceived.getSourceRouter()
                 ddseqnumber = packetReceived.getDatabaseDescriptionSequenceNumber()
                 Mbit = packetReceived.getMbit()
