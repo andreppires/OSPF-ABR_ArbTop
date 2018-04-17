@@ -1,8 +1,9 @@
 import threading
 
+
 class DataStructurePacketsUnicast():
     def __init__(self):
-        self.packets =[]
+        self.packets = []
         self.lock = threading.Lock()
 
     def receivePacket(self, packet):
@@ -13,12 +14,13 @@ class DataStructurePacketsUnicast():
             self.lock.release()
 
     def returnpacket(self):
-        if len(self.packets) >0:
-            self.lock.acquire()
-            try:
+        self.lock.acquire()
+        try:
+            if len(self.packets) > 0:
                 toReturn = self.packets.pop(0)
-            finally:
-                self.lock.release()
-            return toReturn
-        else:
-            return False
+                return toReturn
+            else:
+                return False
+
+        finally:
+            self.lock.release()

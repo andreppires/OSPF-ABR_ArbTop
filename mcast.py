@@ -293,7 +293,7 @@ def readPack(addr, data):
                                         LSChecksum, Length)
 
                         for x in range(NNeigh):
-                            NeighborID = inet_ntoa(data[newpos + 20 + (x * 8):newpos + 20 + (x * 8)])
+                            NeighborID = inet_ntoa(data[newpos + 20 + (x * 8):newpos + 24 + (x * 8)])
                             Metric = IPtoDec(inet_ntoa(data[newpos + 24 + (x * 8):newpos + 28 + (x * 8)]))
                             newlsa.addLinkDataEntry([NeighborID, Metric])
                         packet.receiveLSA(newlsa)
