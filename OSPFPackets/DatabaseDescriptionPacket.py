@@ -24,6 +24,12 @@ class DatabaseDescriptionPacket(OSPFPacket):
             self.setLength()
             self.computeChecksum()
 
+    def isItFirst(self):
+        if self.Init and self.More and self.Master:
+            return True
+        else:
+            return False
+
     def getSourceRouter(self):
         return self.sourceRouter
 
