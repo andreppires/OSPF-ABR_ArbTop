@@ -41,6 +41,7 @@ class cmdOSPF(cmd.Cmd):
         self.IntTransDelay = inttransDelay
 
         self.listInterfaces = []
+        self.dataforUnicastDB = {}
         self.StartInterfacesList()
         self.LSDB = {}
         self.OpaqueID = 0
@@ -58,8 +59,6 @@ class cmdOSPF(cmd.Cmd):
         self.ABR = False
 
         self.threadUnicast = {}
-        self.dataforUnicastDB = DataStructurePacketsUnicast()
-
         return cmd.Cmd.cmdloop(self)
 
     def do_hello(self, line):
@@ -152,19 +151,20 @@ class cmdOSPF(cmd.Cmd):
                 packet = mcast.readPack(addr, data)
                 if packet.getType() == type:
                     if type == 2:
-                        self.dataforUnicastDB.receivePacket(packet)
+                        self.dataforUnicastDB[interfaceaddr].receivePacket(packet)
                     else:
                         return packet
         except Exception:
             return 0
 
-    def getNextDBPacket(self):
-        return self.dataforUnicastDB.returnpacket()
+    def getNextDBPacket(self, ip):
+        return self.dataforUnicastDB[ip].returnpacket()
 
     def StartInterfacesList(self):
         for x in utils.getAllInterfaces():
             self.listInterfaces.append({'interface-name': x, 'ip': utils.getIPofInterface(x),
                                         'netmask': utils.getNetMaskofInterface(x), 'interface-object': None})
+            self.dataforUnicastDB[utils.getIPofInterface(x)] = DataStructurePacketsUnicast()
 
     def setInterface(self, object_interface, interface_name, rid, area):
         for x in self.listInterfaces:

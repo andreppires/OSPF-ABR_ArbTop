@@ -192,7 +192,7 @@ class interface:
         status = True
         packetReceived = False
         while status:
-            packetReceived = self.routerclass.getNextDBPacket()
+            packetReceived = self.routerclass.getNextDBPacket(self.IPInterfaceAddress)
             if packetReceived is not False:
                 status = False
 
@@ -213,7 +213,7 @@ class interface:
             # wait for slave packet
             status = True
             while status:
-                packetReceived = self.routerclass.getNextDBPacket()
+                packetReceived = self.routerclass.getNextDBPacket(self.IPInterfaceAddress)
                 if packetReceived is not False:
                     status = False
 
@@ -236,7 +236,7 @@ class interface:
             # Wait for slave response
             status = True
             while status:
-                packetReceived = self.routerclass.getNextDBPacket()
+                packetReceived = self.routerclass.getNextDBPacket(self.IPInterfaceAddress)
                 if packetReceived is not False:
                     status = False
 
@@ -260,7 +260,7 @@ class interface:
                 # Wait for slave response
                 status = True
                 while status:
-                    packetReceived = self.routerclass.getNextDBPacket()
+                    packetReceived = self.routerclass.getNextDBPacket(self.IPInterfaceAddress)
                     if packetReceived is not False:
                         status = False
                 sourceRouter = packetReceived.getSourceRouter()
@@ -289,7 +289,7 @@ class interface:
             # Wait for master response
             status = True
             while status:
-                packetReceived = self.routerclass.getNextDBPacket()
+                packetReceived = self.routerclass.getNextDBPacket(self.IPInterfaceAddress)
                 if packetReceived is not False:
                     status = False
             sourceRouter = packetReceived.getSourceRouter()
@@ -312,7 +312,7 @@ class interface:
                 # Wait for master response
                 status = True
                 while status:
-                    packetReceived = self.routerclass.getNextDBPacket()
+                    packetReceived = self.routerclass.getNextDBPacket(self.IPInterfaceAddress)
                     if packetReceived is not False:
                         status = False
                 sourceRouter = packetReceived.getSourceRouter()
