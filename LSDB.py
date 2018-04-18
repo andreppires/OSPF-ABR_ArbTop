@@ -75,6 +75,7 @@ class LSDB:
                     self.routerClass.AlertToCreateNetworkLSA(lsa.getLSID(),
                                                              lsa.getSeqNumber() + 1)
                     return
+            lsa.setNextSN(x.getSeqNumber())
 
         lsa.calculateChecksum()
         self.LSAs.append(lsa)
