@@ -1,6 +1,7 @@
 from socket import *
 from string import atoi
 from binascii import b2a_hex, b2a_qp
+import struct
 
 from LSAs.SummaryLSA import SummaryLSA
 from utils import getIPAllInterfaces, IPtoDec, append_hex
@@ -216,8 +217,8 @@ def readPack(addr, data):
             newpos = pos + 28
 
             for x in range(0, NLSAs):  # Read the LSAs
-
-                LSAge = append_hex((td(data[newpos])), (td(data[newpos + 1])))
+                aux =''+struct.pack('!H',0)+(data[newpos])+(data[newpos+1])
+                LSAge = IPtoDec(inet_ntoa(aux))
                 Options = td(data[newpos + 2])
                 LSType = td(data[newpos + 3])
                 LSID = (inet_ntoa(data[newpos + 4:newpos + 8]))

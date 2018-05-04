@@ -135,8 +135,9 @@ class interface:
         if packet.getType() == 1:
             self.readHello(packet)
         if packet.getType() == 2:
-            if packet.getInitBit():
-                self.startThreadforDD(packet.getSourceRouter())
+            pass
+            #if packet.getInitBit():
+            #    self.startThreadforDD(packet.getSourceRouter())
         if packet.getType() == 3:
             pass #TODO Link State Request
         if packet.getType() == 4:

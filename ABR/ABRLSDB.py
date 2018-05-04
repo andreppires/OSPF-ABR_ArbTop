@@ -81,17 +81,17 @@ class ABRLSDB(LSDB):
                 leastcostpathroutes.append(aux)
             self.routerClass.setNewRoutes(leastcostpathroutes, True)
 
-    def createSummaryLSA(self, lsa):
-        lsid = lsa.getSubnetAddress()
-        subnetmask = lsa.getSubnetMask()
-        metric = lsa.getMetric()
-        rid = self.routerClass.getRouterID()
-        try:
-            extraCost = shortestPathCalculator(self.graph, rid, lsa.getADVRouter())
-            metric += extraCost
-        except:
-            pass
-        self.routerClass.createSummaryLSAfromPrefixLSA(lsid, subnetmask, metric)
+    # def createSummaryLSA(self, lsa):
+    #     lsid = lsa.getSubnetAddress()
+    #     subnetmask = lsa.getSubnetMask()
+    #     metric = lsa.getMetric()
+    #     rid = self.routerClass.getRouterID()
+    #     try:
+    #         extraCost = shortestPathCalculator(self.graph, rid, lsa.getADVRouter())
+    #         metric += extraCost
+    #     except:
+    #         pass
+    #     self.routerClass.createSummaryLSAfromPrefixLSA(lsid, subnetmask, metric)
 
     def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
         if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA

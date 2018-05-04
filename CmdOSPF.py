@@ -55,6 +55,7 @@ class cmdOSPF(cmd.Cmd):
         self.threadInc = threading.Thread(target=self.incrementLSATimer, args=())
         self.threadInc.daemon = True
         self.threadInc.start()
+
         self.threadABR = False
         self.ABR = False
 
@@ -62,16 +63,16 @@ class cmdOSPF(cmd.Cmd):
         return cmd.Cmd.cmdloop(self)
 
     def do_hello(self, line):
-        """Hello!!!"""
+        """ Hello!!!"""
         print "hello!"
 
     def do_kernel_route(self, line):
-        """ Route -n linux command"""
+        """shows the kernel forwarding table"""
         bashCommand = "route -n"
         os.system(bashCommand)
 
     def do_ping(self, line):
-        """ Ping linux comand [2 pckts]"""
+        """ping [ip address]: Ping linux command. Only send 2 echo requests"""
         bashCommand = "ping -c 2 " + line
         os.system(bashCommand)
 
@@ -81,34 +82,34 @@ class cmdOSPF(cmd.Cmd):
         return True
 
     def do_bye(self, line):
-        """the same as exit"""
+        """to stop and exit the program"""
         print "Bye!"
         self.realRoutingTable.RemoveEntriesonKernelRT()
         return True
 
     def do_lsdb(self, line):
-        """lsdb [area ip] list all LSAs from one LSDB"""
+        """lsdb [area ip]: list all LSAs of the area"""
 
         self.LSDB[line][0].printLSDB()
 
     def do_graph(self, line):
-        """graph [area ip] shows the gaph of the area"""
+        """graph [area ip]: shows the graph of the area"""
         self.LSDB[line][0].printGraph()
 
     def do_list(self, line):
-        """list interfaces"""
+        """list the interfaces of the equipment"""
         print utils.getAllInterfaces()
 
     def do_fake_routing_table(self, line):
-        """shows a fake routing table based ony on the network and router LSAs"""
+        """shows a forwarding table based ony on the network and router LSAs for intra-area routing"""
         self.fakeRoutingTable.printAll()
 
     def do_routing_table(self, line):
-        """shows the routing table of the OSPF"""
+        """shows the forwarding table of the OSPF"""
         self.realRoutingTable.printAll()
 
     def do_interface(self, line):
-        """interface [name interface] [area] [cost]"""
+        """interface [name interface] [area] [cost]: to add a new interface on the program"""
         print "Add interface to OSPF"
         inter, area, cost = line.split()
 
