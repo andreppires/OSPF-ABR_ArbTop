@@ -433,3 +433,4 @@ class cmdOSPF(cmd.Cmd):
             interface_obj.createNLSA(sn, False)
         else:
             interface_obj.createNLSA(sn, True)
+            
