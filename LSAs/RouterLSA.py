@@ -74,5 +74,6 @@ class RouterLSA(LSAHeader):
     def getDicOfNeighbors(self):
         out ={}
         for x in self.LinksData:
-            out[x[0]] = x[4]
+            if x[2] == 2: #se o link for do tipo transit
+                out[x[0]] = x[4]
         return out

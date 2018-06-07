@@ -75,6 +75,7 @@ class LSDB:
                     self.routerClass.AlertToCreateNetworkLSA(lsa.getLSID(),
                                                              lsa.getSeqNumber() + 1)
                     return
+            lsa.setNextSN(x.getSeqNumber())
 
         lsa.calculateChecksum()
         self.LSAs.append(lsa)
@@ -84,8 +85,7 @@ class LSDB:
             self.constructgraph()
             self.recalculateshortestPaths()
             if lsatype == 1 and lsa.getADVRouter() != self.routerClass.getRouterID():
-                if lsa.getBbit():
-                    self.routerClass.newABRNeighbord()
+                self.routerClass.newABRNeighbord()
 
     def recalculateshortestPaths(self):
         leastcostpathroutes = []

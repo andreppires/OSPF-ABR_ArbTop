@@ -1,3 +1,4 @@
+import utils
 from Deliver import deliver
 from Dijkstra import shortestPathCalculator
 from LSDB import LSDB
@@ -81,17 +82,17 @@ class ABRLSDB(LSDB):
                 leastcostpathroutes.append(aux)
             self.routerClass.setNewRoutes(leastcostpathroutes, True)
 
-    def createSummaryLSA(self, lsa):
-        lsid = lsa.getSubnetAddress()
-        subnetmask = lsa.getSubnetMask()
-        metric = lsa.getMetric()
-        rid = self.routerClass.getRouterID()
-        try:
-            extraCost = shortestPathCalculator(self.graph, rid, lsa.getADVRouter())
-            metric += extraCost
-        except:
-            pass
-        self.routerClass.createSummaryLSAfromPrefixLSA(lsid, subnetmask, metric)
+    # def createSummaryLSA(self, lsa):
+    #     lsid = lsa.getSubnetAddress()
+    #     subnetmask = lsa.getSubnetMask()
+    #     metric = lsa.getMetric()
+    #     rid = self.routerClass.getRouterID()
+    #     try:
+    #         extraCost = shortestPathCalculator(self.graph, rid, lsa.getADVRouter())
+    #         metric += extraCost
+    #     except:
+    #         pass
+    #     self.routerClass.createSummaryLSAfromPrefixLSA(lsid, subnetmask, metric)
 
     def LSAAlreadyExists(self, LSType, LSID, LSAdvRouter, opaquetype, lsa):
         if LSAdvRouter != self.routerClass.getRouterID():   # Not our LSA
@@ -138,10 +139,8 @@ class ABRLSDB(LSDB):
                 sourceInterface = self.routerClass.WhatInterfaceReceivedthePacket(sourceRouter)
                 interfaces = self.routerClass.getInterfaceIPExcept(x)
                 sourceInterface = getIPofInterface(sourceInterface)
-                try:
+                if sourceInterface in interfaces:
                     interfaces.remove(sourceInterface)
-                except ValueError:
-                    continue
             if len(interfaces) != 0:
                 pack = LinkStateUpdatePacket(None, 2, 4, self.routerClass.getRouterID(), x,
                                              0, 0, 0, 0, 1)

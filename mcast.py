@@ -1,6 +1,7 @@
 from socket import *
 from string import atoi
 from binascii import b2a_hex, b2a_qp
+import struct
 
 from LSAs.SummaryLSA import SummaryLSA
 from utils import getIPAllInterfaces, IPtoDec, append_hex
@@ -17,10 +18,6 @@ from LSAs.PrefixLSA import PrefixLSA
 from LSAs.ASBRLSA import ASBRLSA
 from LSAs.ABRLSA import ABRLSA
 
-MCAST_GROUP = '224.0.0.5'
-BIND_ADDR = '0.0.0.0'
-PROTO = 89
-BUFSIZE = 1024
 
 OSPF_TYPE_IGP = '59'
 HELLO_PACKET = '01'
@@ -31,6 +28,11 @@ LS_ACKNOWLEDGE = '05'
 
 DEBUG = False
 
+
+MCAST_GROUP = '224.0.0.5'
+BIND_ADDR = '0.0.0.0'
+PROTO = 89
+BUFSIZE = 1024
 
 class mcast(object):
     def __init__(self):
@@ -75,7 +77,8 @@ def readPack(addr, data):
 
         pos += 20
         version = (td(data[pos]))
-        packet_lenght = append_hex((td(data[pos + 2])), (td(data[pos + 3])))
+        packetLdata = '' + struct.pack('!H', 0) + (data[pos + 2]) + (data[pos + 3])
+        packet_lenght = IPtoDec(inet_ntoa(packetLdata))
         # Message Type
         if b2a_hex(data[pos + 1]) == HELLO_PACKET:
             type = 1
@@ -216,8 +219,8 @@ def readPack(addr, data):
             newpos = pos + 28
 
             for x in range(0, NLSAs):  # Read the LSAs
-
-                LSAge = append_hex((td(data[newpos])), (td(data[newpos + 1])))
+                aux =''+struct.pack('!H',0)+(data[newpos])+(data[newpos+1])
+                LSAge = IPtoDec(inet_ntoa(aux))
                 Options = td(data[newpos + 2])
                 LSType = td(data[newpos + 3])
                 LSID = (inet_ntoa(data[newpos + 4:newpos + 8]))
@@ -321,6 +324,7 @@ def readPack(addr, data):
 
         if type == 5:
             # Link State Acknowledge
+            return 0
             NLSAHeaders = (packet_lenght - 24) / 20
 
             LSACK = LinkStateAcknowledgmentPacket(addr[0], version, type, RouterID, areaID, checksum, AuType,
@@ -328,7 +332,8 @@ def readPack(addr, data):
 
             newpos = pos + 24
             for x in range(0, NLSAHeaders):
-                LSAge = int(str(hex(td(data[newpos]))) + str(hex(td(data[newpos + 1])))[2:], 16)
+                aux = '' + struct.pack('!H', 0) + (data[newpos]) + (data[newpos + 1])
+                LSAge = IPtoDec(inet_ntoa(aux))
                 Options = int(hex(td(data[newpos + 2])), 16)
                 LSType = int(str(td(data[newpos + 3])), 16)
                 LSID = (inet_ntoa(data[newpos + 4:newpos + 8]))

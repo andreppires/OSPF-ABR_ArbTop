@@ -16,13 +16,11 @@ def deliver(packet, addr_int, destination, multicast):
             s.settimeout(0.2)
 
         except socket.error as msg:
-            print "Erro no socket!"
             sys.exit()
             return 'Socket not be created. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 
         # Send the packet finally - the port specified has no effect
-        s.sendto(packet, multicat_group)    # put this in a loop if you want to flood the target
-        return 0
+        s.sendto(packet, multicat_group)
     else:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_RAW, proto)

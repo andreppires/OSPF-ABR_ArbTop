@@ -30,12 +30,12 @@ class ABRRoutingTable(RoutingTable):
         dotedNetmask = utils.calcDottedNetmask(destination['netmask'])
         dest = destination['destination']
 
-        if dest in self.kernelEntries:
-            # delete previos routing table enties for destination
-            listEntries = self.kernelEntries[dest]
-            for x in listEntries:
-                bashCommand = "sudo ip route flush " + x
-                os.system(bashCommand)
+        #if dest in self.kernelEntries:
+        #    # delete previos routing table enties for destination
+        #    listEntries = self.kernelEntries[dest]
+        #    for x in listEntries:
+        #        bashCommand = "sudo ip route flush " + x
+        #        os.system(bashCommand)
 
         if destination['path'] == rid:    # o ABR com melhor custo para o destino sou eu
             entry = self.RoutingClass.getRoutingDatatointraareaRouting(dest)
@@ -44,9 +44,9 @@ class ABRRoutingTable(RoutingTable):
             interface = self.RoutingClass.WhatInterfaceReceivedthePacket(entry['path'][0][1])
 
             entrie =dest + "/" + str(dotedNetmask) +\
-                    " via " + utils.getIPofInterface(interface) + " dev " + interface + " metric 110"
+                    " via " + utils.getIPofInterface(interface) + " dev " + interface
             # add new routing table entry for destination
-            bashCommand = "sudo ip route add " + entrie
+            bashCommand = "sudo ip route replace " + entrie
             os.system(bashCommand)
             self.kernelEntries[dest] = [entrie]
         else:
@@ -56,10 +56,10 @@ class ABRRoutingTable(RoutingTable):
                 for path in data:
                     interface = self.RoutingClass.WhatInterfaceReceivedthePacket(path['path'][1])
                     entrie = dest + "/" + str(dotedNetmask) +\
-                             " via " + utils.getIPofInterface(interface) + " dev " + interface + " metric 110"
+                             " via " + utils.getIPofInterface(interface) + " dev " + interface
 
                     # add new routing table entry for destination
-                    bashCommand = "sudo ip route add " + entrie
+                    bashCommand = "sudo ip route replace " + entrie
                     os.system(bashCommand)
                     self.kernelEntries[dest].append(entrie)
 
@@ -68,5 +68,5 @@ class ABRRoutingTable(RoutingTable):
         for x in self.kernelEntries:
             listentries = self.kernelEntries[x]
             for y in listentries:
-                bashCommand = "sudo ip route flush " + y[:-11]
+                bashCommand = "sudo ip route flush " + y[:-9]
                 os.system(bashCommand)
